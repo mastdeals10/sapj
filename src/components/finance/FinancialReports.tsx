@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../../lib/supabase';
-import { Calendar, RefreshCw } from 'lucide-react';
+import { RefreshCw } from 'lucide-react';
+import { useFinance } from '../../contexts/FinanceContext';
+import { useLanguage } from '../../contexts/LanguageContext';
 
 interface TrialBalanceRow {
   code: string;
@@ -21,13 +23,11 @@ interface FinancialReportsProps {
 }
 
 export function FinancialReports({ initialReport = 'trial_balance' }: FinancialReportsProps) {
+  const { dateRange } = useFinance();
+  const { t } = useLanguage();
   const [reportType, setReportType] = useState<ReportType>(initialReport);
   const [loading, setLoading] = useState(false);
   const [trialBalance, setTrialBalance] = useState<TrialBalanceRow[]>([]);
-  const [dateRange, setDateRange] = useState({
-    start: new Date(new Date().getFullYear(), 0, 1).toISOString().split('T')[0],
-    end: new Date().toISOString().split('T')[0],
-  });
 
   useEffect(() => {
     loadReport();
@@ -38,8 +38,8 @@ export function FinancialReports({ initialReport = 'trial_balance' }: FinancialR
     try {
       // Try to use the RPC function with date range
       const { data: rpcData, error: rpcError } = await supabase.rpc('get_trial_balance', {
-        p_start_date: dateRange.start,
-        p_end_date: dateRange.end,
+        p_start_date: dateRange.startDate,
+        p_end_date: dateRange.endDate,
       });
 
       if (!rpcError && rpcData) {
@@ -76,23 +76,23 @@ export function FinancialReports({ initialReport = 'trial_balance' }: FinancialR
   const equity = trialBalance.filter(r => r.account_type === 'equity').reduce((sum, r) => sum + Math.abs(r.balance), 0);
 
   const reportTabs = [
-    { id: 'trial_balance', label: 'Trial Balance' },
-    { id: 'pnl', label: 'Profit & Loss' },
-    { id: 'balance_sheet', label: 'Balance Sheet' },
+    { id: 'trial_balance', label: t('trial_balance', 'Trial Balance'), label_id: 'Neraca Saldo' },
+    { id: 'pnl', label: t('pnl', 'Profit & Loss'), label_id: 'Laba Rugi' },
+    { id: 'balance_sheet', label: t('balance_sheet', 'Balance Sheet'), label_id: 'Neraca' },
   ];
 
   return (
-    <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <div className="flex gap-2">
+    <div className="space-y-3">
+      <div className="flex items-center justify-between gap-3 bg-white rounded-lg shadow-sm border border-gray-200 p-2">
+        <div className="flex gap-1.5">
           {reportTabs.map(tab => (
             <button
               key={tab.id}
               onClick={() => setReportType(tab.id as ReportType)}
-              className={`px-4 py-2 rounded-lg font-medium transition ${
+              className={`px-3 py-1.5 rounded text-xs font-medium transition ${
                 reportType === tab.id
                   ? 'bg-blue-600 text-white'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  : 'bg-gray-50 text-gray-700 hover:bg-gray-100'
               }`}
             >
               {tab.label}
@@ -100,31 +100,13 @@ export function FinancialReports({ initialReport = 'trial_balance' }: FinancialR
           ))}
         </div>
 
-        <div className="flex items-center gap-4">
-          <div className="flex items-center gap-2">
-            <Calendar className="w-4 h-4 text-gray-500" />
-            <input
-              type="date"
-              value={dateRange.start}
-              onChange={(e) => setDateRange({ ...dateRange, start: e.target.value })}
-              className="px-3 py-2 border border-gray-300 rounded-lg"
-            />
-            <span className="text-gray-500">to</span>
-            <input
-              type="date"
-              value={dateRange.end}
-              onChange={(e) => setDateRange({ ...dateRange, end: e.target.value })}
-              className="px-3 py-2 border border-gray-300 rounded-lg"
-            />
-          </div>
-          <button
-            onClick={loadReport}
-            className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200"
-          >
-            <RefreshCw className="w-4 h-4" />
-            Refresh
-          </button>
-        </div>
+        <button
+          onClick={loadReport}
+          className="flex items-center gap-1.5 px-2.5 py-1.5 bg-gray-50 text-gray-700 rounded text-xs hover:bg-gray-100"
+        >
+          <RefreshCw className="w-3.5 h-3.5" />
+          {t('refresh', 'Refresh')}
+        </button>
       </div>
 
       {loading ? (
@@ -134,49 +116,49 @@ export function FinancialReports({ initialReport = 'trial_balance' }: FinancialR
       ) : (
         <>
           {reportType === 'trial_balance' && (
-            <div className="bg-white rounded-lg shadow overflow-hidden">
-              <div className="p-4 border-b bg-gray-50">
-                <h3 className="font-semibold text-lg">Trial Balance</h3>
-                <p className="text-sm text-gray-500">As of {new Date(dateRange.end).toLocaleDateString('id-ID')}</p>
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+              <div className="px-3 py-2 border-b bg-gray-50">
+                <h3 className="font-semibold text-sm">{t('trial_balance', 'Trial Balance')}</h3>
+                <p className="text-xs text-gray-500">{t('as_of', 'As of')} {new Date(dateRange.endDate).toLocaleDateString('id-ID')}</p>
               </div>
               <table className="w-full">
                 <thead className="bg-gray-50">
                   <tr>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Code</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Account Name</th>
-                    <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Debit</th>
-                    <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Credit</th>
+                    <th className="px-3 py-2 text-left text-[10px] font-medium text-gray-500 uppercase">{t('code', 'Code')}</th>
+                    <th className="px-3 py-2 text-left text-[10px] font-medium text-gray-500 uppercase">{t('account_name', 'Account Name')}</th>
+                    <th className="px-3 py-2 text-right text-[10px] font-medium text-gray-500 uppercase">{t('debit', 'Debit')}</th>
+                    <th className="px-3 py-2 text-right text-[10px] font-medium text-gray-500 uppercase">{t('credit', 'Credit')}</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y">
+                <tbody className="divide-y divide-gray-100">
                   {trialBalance.map(row => (
                     <tr key={row.code} className="hover:bg-gray-50">
-                      <td className="px-4 py-2 font-mono text-sm">{row.code}</td>
-                      <td className="px-4 py-2">
+                      <td className="px-3 py-1.5 font-mono text-xs">{row.code}</td>
+                      <td className="px-3 py-1.5 text-sm">
                         <div>{row.name}</div>
-                        {row.name_id && <div className="text-sm text-gray-500">{row.name_id}</div>}
+                        {row.name_id && <div className="text-xs text-gray-500">{row.name_id}</div>}
                       </td>
-                      <td className="px-4 py-2 text-right text-blue-600">
+                      <td className="px-3 py-1.5 text-right text-sm text-blue-600">
                         {row.balance > 0 ? `Rp ${row.balance.toLocaleString('id-ID', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : ''}
                       </td>
-                      <td className="px-4 py-2 text-right text-green-600">
+                      <td className="px-3 py-1.5 text-right text-sm text-green-600">
                         {row.balance < 0 ? `Rp ${Math.abs(row.balance).toLocaleString('id-ID', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : ''}
                       </td>
                     </tr>
                   ))}
                   {trialBalance.length === 0 && (
                     <tr>
-                      <td colSpan={4} className="px-4 py-8 text-center text-gray-500">
-                        No transactions found
+                      <td colSpan={4} className="px-3 py-6 text-center text-sm text-gray-500">
+                        {t('no_data', 'No transactions found')}
                       </td>
                     </tr>
                   )}
                 </tbody>
                 <tfoot className="bg-gray-100 font-bold">
                   <tr>
-                    <td colSpan={2} className="px-4 py-3 text-right">Total:</td>
-                    <td className="px-4 py-3 text-right text-blue-700">Rp {totals.debit.toLocaleString('id-ID', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                    <td className="px-4 py-3 text-right text-green-700">Rp {totals.credit.toLocaleString('id-ID', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                    <td colSpan={2} className="px-3 py-2 text-right text-sm">{t('total', 'Total')}:</td>
+                    <td className="px-3 py-2 text-right text-sm text-blue-700">Rp {totals.debit.toLocaleString('id-ID', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                    <td className="px-3 py-2 text-right text-sm text-green-700">Rp {totals.credit.toLocaleString('id-ID', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                   </tr>
                 </tfoot>
               </table>
@@ -184,60 +166,60 @@ export function FinancialReports({ initialReport = 'trial_balance' }: FinancialR
           )}
 
           {reportType === 'pnl' && (
-            <div className="bg-white rounded-lg shadow overflow-hidden">
-              <div className="p-4 border-b bg-gray-50">
-                <h3 className="font-semibold text-lg">Profit & Loss Statement</h3>
-                <p className="text-sm text-gray-500">
-                  Period: {new Date(dateRange.start).toLocaleDateString('id-ID')} - {new Date(dateRange.end).toLocaleDateString('id-ID')}
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+              <div className="px-3 py-2 border-b bg-gray-50">
+                <h3 className="font-semibold text-sm">{t('pnl', 'Profit & Loss Statement')}</h3>
+                <p className="text-xs text-gray-500">
+                  {t('period', 'Period')}: {new Date(dateRange.startDate).toLocaleDateString('id-ID')} - {new Date(dateRange.endDate).toLocaleDateString('id-ID')}
                 </p>
-                <p className="text-xs text-amber-600 mt-1 italic">
-                  Note: Costs may change as import expenses are updated
+                <p className="text-[10px] text-amber-600 mt-0.5 italic">
+                  {t('pnl_note', 'Note: Costs may change as import expenses are updated')}
                 </p>
               </div>
-              
-              <div className="p-4">
-                <div className="mb-6">
-                  <h4 className="font-semibold text-green-700 mb-2 border-b pb-2">Revenue (Pendapatan)</h4>
+
+              <div className="p-3">
+                <div className="mb-4">
+                  <h4 className="font-semibold text-green-700 text-xs mb-1.5 border-b pb-1">{t('revenue', 'Revenue')} (Pendapatan)</h4>
                   <table className="w-full">
                     <tbody>
                       {trialBalance.filter(r => r.account_type === 'revenue').map(row => (
                         <tr key={row.code}>
-                          <td className="py-1 font-mono text-sm text-gray-500">{row.code}</td>
-                          <td className="py-1">{row.name}</td>
-                          <td className="py-1 text-right text-green-600">Rp {Math.abs(row.balance).toLocaleString('id-ID', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                          <td className="py-0.5 font-mono text-[10px] text-gray-500">{row.code}</td>
+                          <td className="py-0.5 text-xs">{row.name}</td>
+                          <td className="py-0.5 text-right text-xs text-green-600">Rp {Math.abs(row.balance).toLocaleString('id-ID', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                         </tr>
                       ))}
                       <tr className="font-semibold border-t">
-                        <td colSpan={2} className="py-2">Total Revenue</td>
-                        <td className="py-2 text-right text-green-700">Rp {revenue.toLocaleString('id-ID', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                        <td colSpan={2} className="py-1.5 text-xs">{t('total_revenue', 'Total Revenue')}</td>
+                        <td className="py-1.5 text-right text-xs text-green-700">Rp {revenue.toLocaleString('id-ID', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                       </tr>
                     </tbody>
                   </table>
                 </div>
 
-                <div className="mb-6">
-                  <h4 className="font-semibold text-red-700 mb-2 border-b pb-2">Expenses (Beban)</h4>
+                <div className="mb-4">
+                  <h4 className="font-semibold text-red-700 text-xs mb-1.5 border-b pb-1">{t('expenses', 'Expenses')} (Beban)</h4>
                   <table className="w-full">
                     <tbody>
                       {trialBalance.filter(r => r.account_type === 'expense').map(row => (
                         <tr key={row.code}>
-                          <td className="py-1 font-mono text-sm text-gray-500">{row.code}</td>
-                          <td className="py-1">{row.name}</td>
-                          <td className="py-1 text-right text-red-600">Rp {Math.abs(row.balance).toLocaleString('id-ID', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                          <td className="py-0.5 font-mono text-[10px] text-gray-500">{row.code}</td>
+                          <td className="py-0.5 text-xs">{row.name}</td>
+                          <td className="py-0.5 text-right text-xs text-red-600">Rp {Math.abs(row.balance).toLocaleString('id-ID', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                         </tr>
                       ))}
                       <tr className="font-semibold border-t">
-                        <td colSpan={2} className="py-2">Total Expenses</td>
-                        <td className="py-2 text-right text-red-700">Rp {expenses.toLocaleString('id-ID', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                        <td colSpan={2} className="py-1.5 text-xs">{t('total_expenses', 'Total Expenses')}</td>
+                        <td className="py-1.5 text-right text-xs text-red-700">Rp {expenses.toLocaleString('id-ID', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                       </tr>
                     </tbody>
                   </table>
                 </div>
 
-                <div className={`p-4 rounded-lg ${netIncome >= 0 ? 'bg-green-50' : 'bg-red-50'}`}>
+                <div className={`p-2.5 rounded ${netIncome >= 0 ? 'bg-green-50' : 'bg-red-50'}`}>
                   <div className="flex justify-between items-center">
-                    <span className="font-bold text-lg">Net Income <span className="text-sm font-normal italic">(Provisional)</span></span>
-                    <span className={`font-bold text-2xl ${netIncome >= 0 ? 'text-green-700' : 'text-red-700'}`}>
+                    <span className="font-bold text-sm">{t('net_income', 'Net Income')} <span className="text-xs font-normal italic">({t('provisional', 'Provisional')})</span></span>
+                    <span className={`font-bold text-base ${netIncome >= 0 ? 'text-green-700' : 'text-red-700'}`}>
                       Rp {netIncome.toLocaleString('id-ID', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </span>
                   </div>
@@ -247,91 +229,91 @@ export function FinancialReports({ initialReport = 'trial_balance' }: FinancialR
           )}
 
           {reportType === 'balance_sheet' && (
-            <div className="bg-white rounded-lg shadow overflow-hidden">
-              <div className="p-4 border-b bg-gray-50">
-                <h3 className="font-semibold text-lg">Balance Sheet (Neraca)</h3>
-                <p className="text-sm text-gray-500">As of {new Date(dateRange.end).toLocaleDateString('id-ID')}</p>
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+              <div className="px-3 py-2 border-b bg-gray-50">
+                <h3 className="font-semibold text-sm">{t('balance_sheet', 'Balance Sheet')} (Neraca)</h3>
+                <p className="text-xs text-gray-500">{t('as_of', 'As of')} {new Date(dateRange.endDate).toLocaleDateString('id-ID')}</p>
               </div>
               
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 p-3">
                 <div>
-                  <h4 className="font-semibold text-blue-700 mb-2 border-b pb-2">Assets (Aset)</h4>
+                  <h4 className="font-semibold text-blue-700 text-xs mb-1.5 border-b pb-1">{t('assets', 'Assets')} (Aset)</h4>
                   <table className="w-full">
                     <tbody>
                       {trialBalance.filter(r => r.account_type === 'asset').map(row => (
                         <tr key={row.code}>
-                          <td className="py-1">
-                            <span className="font-mono text-xs text-gray-500 mr-2">{row.code}</span>
+                          <td className="py-0.5 text-xs">
+                            <span className="font-mono text-[10px] text-gray-500 mr-1.5">{row.code}</span>
                             {row.name}
                           </td>
-                          <td className="py-1 text-right text-blue-600">Rp {row.balance.toLocaleString('id-ID', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                          <td className="py-0.5 text-right text-xs text-blue-600">Rp {row.balance.toLocaleString('id-ID', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                         </tr>
                       ))}
                       {trialBalance.filter(r => r.account_type === 'contra' && r.account_group?.includes('Assets')).map(row => (
                         <tr key={row.code} className="text-gray-500">
-                          <td className="py-1">
-                            <span className="font-mono text-xs mr-2">{row.code}</span>
+                          <td className="py-0.5 text-xs">
+                            <span className="font-mono text-[10px] mr-1.5">{row.code}</span>
                             {row.name}
                           </td>
-                          <td className="py-1 text-right">({Math.abs(row.balance).toLocaleString('id-ID', { minimumFractionDigits: 2, maximumFractionDigits: 2 })})</td>
+                          <td className="py-0.5 text-right text-xs">({Math.abs(row.balance).toLocaleString('id-ID', { minimumFractionDigits: 2, maximumFractionDigits: 2 })})</td>
                         </tr>
                       ))}
                       <tr className="font-semibold border-t-2">
-                        <td className="py-2">Total Assets</td>
-                        <td className="py-2 text-right text-blue-700">Rp {(assets - contraAssets).toLocaleString('id-ID', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                        <td className="py-1.5 text-xs">{t('total_assets', 'Total Assets')}</td>
+                        <td className="py-1.5 text-right text-xs text-blue-700">Rp {(assets - contraAssets).toLocaleString('id-ID', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                       </tr>
                     </tbody>
                   </table>
                 </div>
 
                 <div>
-                  <h4 className="font-semibold text-red-700 mb-2 border-b pb-2">Liabilities (Kewajiban)</h4>
+                  <h4 className="font-semibold text-red-700 text-xs mb-1.5 border-b pb-1">{t('liabilities', 'Liabilities')} (Kewajiban)</h4>
                   <table className="w-full">
                     <tbody>
                       {trialBalance.filter(r => r.account_type === 'liability').map(row => (
                         <tr key={row.code}>
-                          <td className="py-1">
-                            <span className="font-mono text-xs text-gray-500 mr-2">{row.code}</span>
+                          <td className="py-0.5 text-xs">
+                            <span className="font-mono text-[10px] text-gray-500 mr-1.5">{row.code}</span>
                             {row.name}
                           </td>
-                          <td className="py-1 text-right text-red-600">Rp {Math.abs(row.balance).toLocaleString('id-ID', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                          <td className="py-0.5 text-right text-xs text-red-600">Rp {Math.abs(row.balance).toLocaleString('id-ID', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                         </tr>
                       ))}
                       <tr className="font-semibold border-t">
-                        <td className="py-2">Total Liabilities</td>
-                        <td className="py-2 text-right text-red-700">Rp {liabilities.toLocaleString('id-ID', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                        <td className="py-1.5 text-xs">{t('total_liabilities', 'Total Liabilities')}</td>
+                        <td className="py-1.5 text-right text-xs text-red-700">Rp {liabilities.toLocaleString('id-ID', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                       </tr>
                     </tbody>
                   </table>
 
-                  <h4 className="font-semibold text-purple-700 mb-2 border-b pb-2 mt-6">Equity (Modal)</h4>
+                  <h4 className="font-semibold text-purple-700 text-xs mb-1.5 border-b pb-1 mt-4">{t('equity', 'Equity')} (Modal)</h4>
                   <table className="w-full">
                     <tbody>
                       {trialBalance.filter(r => r.account_type === 'equity').map(row => (
                         <tr key={row.code}>
-                          <td className="py-1">
-                            <span className="font-mono text-xs text-gray-500 mr-2">{row.code}</span>
+                          <td className="py-0.5 text-xs">
+                            <span className="font-mono text-[10px] text-gray-500 mr-1.5">{row.code}</span>
                             {row.name}
                           </td>
-                          <td className="py-1 text-right text-purple-600">Rp {Math.abs(row.balance).toLocaleString('id-ID', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                          <td className="py-0.5 text-right text-xs text-purple-600">Rp {Math.abs(row.balance).toLocaleString('id-ID', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                         </tr>
                       ))}
                       <tr>
-                        <td className="py-1">Current Year Earnings</td>
-                        <td className={`py-1 text-right ${netIncome >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                        <td className="py-0.5 text-xs">{t('current_year_earnings', 'Current Year Earnings')}</td>
+                        <td className={`py-0.5 text-right text-xs ${netIncome >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                           Rp {netIncome.toLocaleString('id-ID', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         </td>
                       </tr>
                       <tr className="font-semibold border-t">
-                        <td className="py-2">Total Equity</td>
-                        <td className="py-2 text-right text-purple-700">Rp {(equity + netIncome).toLocaleString('id-ID', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                        <td className="py-1.5 text-xs">{t('total_equity', 'Total Equity')}</td>
+                        <td className="py-1.5 text-right text-xs text-purple-700">Rp {(equity + netIncome).toLocaleString('id-ID', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                       </tr>
                     </tbody>
                   </table>
 
-                  <div className="mt-4 p-3 bg-gray-100 rounded-lg">
-                    <div className="flex justify-between font-bold">
-                      <span>Total Liabilities + Equity</span>
+                  <div className="mt-3 p-2 bg-gray-100 rounded">
+                    <div className="flex justify-between font-bold text-xs">
+                      <span>{t('total_liabilities_equity', 'Total Liabilities + Equity')}</span>
                       <span>Rp {(liabilities + equity + netIncome).toLocaleString('id-ID', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                     </div>
                   </div>
