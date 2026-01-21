@@ -104,9 +104,9 @@ export function BankReconciliationEnhanced({ canManage }: BankReconciliationEnha
     {
       value: 'ppn_import',
       label: 'PPN Import',
-      type: 'import',
-      requiresContainer: true,
-      group: 'Import Costs'
+      type: 'operations',
+      requiresContainer: false,
+      group: 'Operations'
     },
     {
       value: 'pph_import',

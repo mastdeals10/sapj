@@ -78,11 +78,11 @@ const expenseCategories = [
   {
     value: 'ppn_import',
     label: 'PPN Import',
-    type: 'import',
-    icon: Building2,
-    description: 'Import VAT - CAPITALIZED to inventory',
-    requiresContainer: true,
-    group: 'Import Costs'
+    type: 'operations',
+    icon: DollarSign,
+    description: 'Import VAT - EXPENSED to P&L',
+    requiresContainer: false,
+    group: 'Operations'
   },
   {
     value: 'pph_import',
