@@ -616,49 +616,50 @@ export function Batches() {
     {
       key: 'landed_cost',
       label: 'Landed Cost',
-      render: (value: any, batch: Batch) => (
-        <div className="text-sm">
-          {batch.import_cost_allocated && batch.import_cost_allocated > 0 ? (
-            <>
-              {batch.import_price_usd && batch.exchange_rate_usd_to_idr ? (
-                <>
-                  <div className="font-medium text-blue-700">
-                    {formatCurrency((batch.final_landed_cost || 0) / batch.exchange_rate_usd_to_idr, 'USD')}
-                  </div>
-                  <div className="text-xs text-gray-500">
-                    {formatCurrency(batch.final_landed_cost || 0)}
-                  </div>
-                  <div className="text-xs text-green-600">
-                    +Container: {formatCurrency(batch.import_cost_allocated)}
-                  </div>
-                </>
-              ) : (
-                <>
-                  <div className="font-medium text-blue-700">
-                    {formatCurrency(batch.final_landed_cost || 0)}
-                  </div>
-                  <div className="text-xs text-gray-500">
-                    Base: {formatCurrency(batch.import_price)}
-                  </div>
-                  <div className="text-xs text-green-600">
-                    +Container: {formatCurrency(batch.import_cost_allocated)}
-                  </div>
-                </>
-              )}
-              {batch.import_containers?.container_ref && (
-                <div className="text-xs text-gray-400">
-                  {batch.import_containers.container_ref}
+      render: (value: any, batch: Batch) => {
+        const totalCost = batch.import_price + batch.duty_charges + batch.freight_charges + batch.other_charges;
+        const hasContainer = batch.import_cost_allocated && batch.import_cost_allocated > 0;
+        const landedCost = hasContainer ? (batch.final_landed_cost || 0) : totalCost;
+
+        return (
+          <div className="text-sm">
+            {batch.import_price_usd && batch.exchange_rate_usd_to_idr ? (
+              <>
+                <div className="font-medium text-blue-700">
+                  {formatCurrency(landedCost / batch.exchange_rate_usd_to_idr, 'USD')}
                 </div>
-              )}
-              {batch.cost_locked && (
-                <div className="text-xs text-amber-600 font-medium">🔒 Locked</div>
-              )}
-            </>
-          ) : (
-            <div className="text-gray-400 text-xs">Not allocated</div>
-          )}
-        </div>
-      )
+                <div className="text-xs text-gray-500">
+                  {formatCurrency(landedCost)}
+                </div>
+                {hasContainer && (
+                  <div className="text-xs text-green-600">
+                    +Container: {formatCurrency(batch.import_cost_allocated)}
+                  </div>
+                )}
+              </>
+            ) : (
+              <>
+                <div className="font-medium text-blue-700">
+                  {formatCurrency(landedCost)}
+                </div>
+                {hasContainer && (
+                  <div className="text-xs text-green-600">
+                    +Container: {formatCurrency(batch.import_cost_allocated)}
+                  </div>
+                )}
+              </>
+            )}
+            {batch.import_containers?.container_ref && (
+              <div className="text-xs text-gray-400">
+                {batch.import_containers.container_ref}
+              </div>
+            )}
+            {batch.cost_locked && (
+              <div className="text-xs text-amber-600 font-medium">🔒 Locked</div>
+            )}
+          </div>
+        );
+      }
     },
     {
       key: 'expiry_date',
@@ -784,26 +785,54 @@ export function Batches() {
             resetForm();
           }}
           title={editingBatch ? 'Edit Batch' : 'Add New Batch'}
+          size="xl"
         >
-          <form onSubmit={handleSubmit} className="space-y-3">
-            <div className="border-b pb-2">
-              <h3 className="text-sm font-semibold text-gray-900 mb-2">Basic Information</h3>
-              <div className="grid grid-cols-2 gap-3">
+          <form onSubmit={handleSubmit} className="space-y-2">
+            <div className="border-b pb-1.5">
+              <h3 className="text-xs font-semibold text-gray-900 mb-1.5">Basic Information</h3>
+              <div className="grid grid-cols-[2fr_1fr_1fr] gap-2 mb-2">
                 <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">
+                  <label className="block text-xs font-medium text-gray-700 mb-0.5">
                     Batch Number *
                   </label>
                   <input
                     type="text"
                     value={formData.batch_number}
                     onChange={(e) => setFormData({ ...formData, batch_number: e.target.value })}
-                    className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500"
+                    className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500"
                     required
                   />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">
+                  <label className="block text-xs font-medium text-gray-700 mb-0.5">
+                    Import Date *
+                  </label>
+                  <input
+                    type="date"
+                    value={formData.import_date}
+                    onChange={(e) => setFormData({ ...formData, import_date: e.target.value })}
+                    className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-0.5">
+                    Expiry Date
+                  </label>
+                  <input
+                    type="date"
+                    value={formData.expiry_date}
+                    onChange={(e) => setFormData({ ...formData, expiry_date: e.target.value })}
+                    className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-0.5">
                     Product *
                   </label>
                   <SearchableSelect
@@ -827,32 +856,7 @@ export function Batches() {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">
-                    Import Date *
-                  </label>
-                  <input
-                    type="date"
-                    value={formData.import_date}
-                    onChange={(e) => setFormData({ ...formData, import_date: e.target.value })}
-                    className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500"
-                    required
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">
-                    Expiry Date
-                  </label>
-                  <input
-                    type="date"
-                    value={formData.expiry_date}
-                    onChange={(e) => setFormData({ ...formData, expiry_date: e.target.value })}
-                    className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">
+                  <label className="block text-xs font-medium text-gray-700 mb-0.5">
                     Import Container (Optional)
                   </label>
                   <SearchableSelect
@@ -873,18 +877,18 @@ export function Batches() {
               </div>
             </div>
 
-            <div className="border-b pb-2">
-              <h3 className="text-sm font-semibold text-gray-900 mb-2">Quantity</h3>
-              <div className="grid grid-cols-2 gap-3">
+            <div className="border-b pb-1.5">
+              <h3 className="text-xs font-semibold text-gray-900 mb-1.5">Quantity</h3>
+              <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">
+                  <label className="block text-xs font-medium text-gray-700 mb-0.5">
                     Import Quantity *
                   </label>
                   <input
                     type="number"
                     value={formData.import_quantity === 0 ? '' : formData.import_quantity}
                     onChange={(e) => setFormData({ ...formData, import_quantity: e.target.value === '' ? 0 : Number(e.target.value) })}
-                    className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500"
+                    className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500"
                     required
                     min="0"
                     step="0.001"
@@ -895,10 +899,10 @@ export function Batches() {
 
                 {editingBatch && (
                   <div>
-                    <label className="block text-xs font-medium text-gray-700 mb-1">
+                    <label className="block text-xs font-medium text-gray-700 mb-0.5">
                       Current Stock
                     </label>
-                    <div className="w-full px-2 py-1.5 text-sm border border-gray-200 rounded bg-gray-50">
+                    <div className="w-full px-2 py-1 text-sm border border-gray-200 rounded bg-gray-50">
                       <span className="text-gray-700 font-medium">{editingBatch.current_stock.toLocaleString()}</span>
                     </div>
                     <p className="text-xs text-gray-500 mt-0.5">
@@ -910,14 +914,14 @@ export function Batches() {
               </div>
             </div>
 
-            <div className="border-b pb-2">
-              <h3 className="text-sm font-semibold text-gray-900 mb-2 flex items-center gap-2">
-                <Package className="w-4 h-4" />
+            <div className="border-b pb-1.5">
+              <h3 className="text-xs font-semibold text-gray-900 mb-1 flex items-center gap-1.5">
+                <Package className="w-3.5 h-3.5" />
                 Packaging Details (Optional)
               </h3>
               <div className="grid grid-cols-3 gap-2">
                 <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">
+                  <label className="block text-xs font-medium text-gray-700 mb-0.5">
                     Per Pack Weight
                   </label>
                   <input
@@ -936,13 +940,13 @@ export function Batches() {
                       setFormData(newFormData);
                     }}
                     placeholder="e.g., 25"
-                    className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500"
+                    className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500"
                   />
                   <p className="text-xs text-gray-500 mt-0.5">kg per pack</p>
                 </div>
 
                 <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">
+                  <label className="block text-xs font-medium text-gray-700 mb-0.5">
                     Pack Type
                   </label>
                   <select
@@ -958,7 +962,7 @@ export function Batches() {
                       }
                       setFormData(newFormData);
                     }}
-                    className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500"
+                    className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500"
                   >
                     <option value="bag">Bag</option>
                     <option value="drum">Drum</option>
@@ -970,10 +974,10 @@ export function Batches() {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">
+                  <label className="block text-xs font-medium text-gray-700 mb-0.5">
                     Calculated Packs
                   </label>
-                  <div className="px-2 py-1.5 text-sm bg-gray-50 border border-gray-200 rounded">
+                  <div className="px-2 py-1 text-sm bg-gray-50 border border-gray-200 rounded">
                     <span className="text-gray-700 font-medium">
                       {formData.import_quantity && formData.per_pack_weight
                         ? Math.ceil(formData.import_quantity / parseFloat(formData.per_pack_weight))
@@ -985,7 +989,7 @@ export function Batches() {
               </div>
 
               {formData.packaging_details && (
-                <div className="mt-1.5 p-2 bg-blue-50 border border-blue-200 rounded">
+                <div className="mt-1 p-1.5 bg-blue-50 border border-blue-200 rounded">
                   <p className="text-xs text-blue-900">
                     <span className="font-semibold">Packaging: </span>
                     {formData.packaging_details}
@@ -994,21 +998,21 @@ export function Batches() {
               )}
             </div>
 
-            <div className="border-b pb-2">
-              <h3 className="text-sm font-semibold text-gray-900 mb-2 flex items-center gap-2">
-                <DollarSign className="w-4 h-4 text-green-600" />
+            <div className="border-b pb-1.5">
+              <h3 className="text-xs font-semibold text-gray-900 mb-1 flex items-center gap-1.5">
+                <DollarSign className="w-3.5 h-3.5 text-green-600" />
                 Import Pricing (USD)
               </h3>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">
+                  <label className="block text-xs font-medium text-gray-700 mb-0.5">
                     Import Price (USD)
                   </label>
                   <input
                     type="number"
                     value={formData.import_price_usd === 0 ? '' : formData.import_price_usd}
                     onChange={(e) => setFormData({ ...formData, import_price_usd: e.target.value === '' ? 0 : Number(e.target.value) })}
-                    className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500"
+                    className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500"
                     min="0"
                     step="0.01"
                     placeholder="0.00"
@@ -1016,14 +1020,14 @@ export function Batches() {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">
+                  <label className="block text-xs font-medium text-gray-700 mb-0.5">
                     Exchange Rate (USD to IDR)
                   </label>
                   <input
                     type="number"
                     value={formData.exchange_rate_usd_to_idr === 0 ? '' : formData.exchange_rate_usd_to_idr}
                     onChange={(e) => setFormData({ ...formData, exchange_rate_usd_to_idr: e.target.value === '' ? 0 : Number(e.target.value) })}
-                    className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500"
+                    className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500"
                     min="0"
                     step="0.0001"
                     placeholder="15000"
@@ -1035,7 +1039,7 @@ export function Batches() {
               </div>
 
               {formData.import_price_usd > 0 && formData.exchange_rate_usd_to_idr > 0 && (
-                <div className="mt-2 p-2 bg-green-50 border border-green-200 rounded">
+                <div className="mt-1 p-1.5 bg-green-50 border border-green-200 rounded">
                   <p className="text-xs text-green-800">
                     <span className="font-semibold">Calculated Import Price (IDR):</span>{' '}
                     {formatCurrency(formData.import_price_usd * formData.exchange_rate_usd_to_idr)}
@@ -1047,8 +1051,8 @@ export function Batches() {
               )}
             </div>
 
-            <div className="border-b pb-3">
-              <h3 className="text-sm font-semibold text-gray-900 mb-2">Additional Charges</h3>
+            <div className="border-b pb-1.5">
+              <h3 className="text-xs font-semibold text-gray-900 mb-1">Additional Charges</h3>
               <div className="space-y-3">
                 <div className="grid grid-cols-[1fr_1fr_1fr] gap-2">
                   <div>
@@ -1183,9 +1187,9 @@ export function Batches() {
               </div>
             </div>
 
-            <div className="border-t pt-2">
-              <h3 className="text-sm font-semibold text-gray-900 mb-2 flex items-center gap-2">
-                <FileText className="w-4 h-4" />
+            <div className="border-t pt-1.5">
+              <h3 className="text-xs font-semibold text-gray-900 mb-1 flex items-center gap-1.5">
+                <FileText className="w-3.5 h-3.5" />
                 Import Documents
               </h3>
               <FileUpload
@@ -1195,20 +1199,20 @@ export function Batches() {
               />
             </div>
 
-            <div className="flex justify-end gap-2 pt-3 border-t">
+            <div className="flex justify-end gap-2 pt-2 border-t">
               <button
                 type="button"
                 onClick={() => {
                   setModalOpen(false);
                   resetForm();
                 }}
-                className="px-3 py-1.5 text-sm border border-gray-300 rounded hover:bg-gray-50 transition"
+                className="px-3 py-1 text-sm border border-gray-300 rounded hover:bg-gray-50 transition"
               >
                 Cancel
               </button>
               <button
                 type="submit"
-                className="px-3 py-1.5 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 transition"
+                className="px-3 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 transition"
               >
                 {editingBatch ? 'Update Batch' : 'Add Batch'}
               </button>
