@@ -479,8 +479,8 @@ export function Products() {
       )
     },
     { key: 'hsn_code', label: 'HSN CODE' },
-    { key: 'category', label: 'CATEGORY', render: (value: string) => value?.toUpperCase() },
-    { key: 'unit', label: 'UNIT', render: (value: string) => value?.toUpperCase() },
+    { key: 'category', label: 'CATEGORY', render: (value: string) => value ? value.toUpperCase() : '-' },
+    { key: 'unit', label: 'UNIT', render: (value: string) => value ? value.toUpperCase() : '-' },
     {
       key: 'current_stock',
       label: 'STOCK',
