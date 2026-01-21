@@ -518,6 +518,7 @@ export function Products() {
         title={editingProduct ? 'Edit Product' : 'Add Product'}
       >
         <form onSubmit={handleSubmit} className="space-y-4">
+          {/* Row 1: Product Name and HSN Code */}
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -547,7 +548,10 @@ export function Products() {
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
               />
             </div>
+          </div>
 
+          {/* Row 2: Duty-A1 and Category */}
+          <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Duty - A1
@@ -582,7 +586,10 @@ export function Products() {
                 <option value="other">Other</option>
               </select>
             </div>
+          </div>
 
+          {/* Row 3: Unit and Minimum Stock Level */}
+          <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Unit *
@@ -660,16 +667,19 @@ export function Products() {
             />
           </div>
 
-          <div className="border-t pt-4">
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              <FileText className="w-4 h-4 inline mr-1" />
-              Product Documents (COA, MSDS, Specifications)
-            </label>
+          {/* Product Documents Section */}
+          <div className="border-t pt-4 mt-4">
+            <div className="flex items-center gap-2 mb-3">
+              <FileText className="w-5 h-5 text-gray-700" />
+              <label className="text-sm font-medium text-gray-900">
+                Product Documents (COA, MSDS, Specifications)
+              </label>
+            </div>
             <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg mb-3">
-              <p className="text-xs text-blue-800">
+              <p className="text-sm text-blue-900 mb-1.5">
                 Upload reference documents for this product (applies to all batches):
               </p>
-              <ul className="mt-1 text-xs text-blue-700 space-y-0.5 ml-4 list-disc">
+              <ul className="text-xs text-blue-700 space-y-1 ml-4 list-disc">
                 <li><strong>COA:</strong> Certificate of Analysis template</li>
                 <li><strong>MSDS:</strong> Material Safety Data Sheet</li>
                 <li><strong>TDS:</strong> Technical Data Sheet</li>
