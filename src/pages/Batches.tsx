@@ -693,8 +693,25 @@ export function Batches() {
       key: 'total_cost',
       label: 'Total Cost',
       render: (value: any, batch: Batch) => {
-        const total = batch.import_price + batch.duty_charges + batch.freight_charges + batch.other_charges;
-        return <span className="font-medium">{formatCurrency(total)}</span>;
+        const totalCostIDR = batch.import_price * batch.import_quantity;
+        const totalCostUSD = batch.import_price_usd ? batch.import_price_usd * batch.import_quantity : null;
+
+        return (
+          <div className="text-sm">
+            {totalCostUSD && batch.exchange_rate_usd_to_idr ? (
+              <>
+                <div className="font-semibold text-green-700">
+                  {formatCurrency(totalCostUSD, 'USD')}
+                </div>
+                <div className="text-xs text-gray-500">
+                  {formatCurrency(totalCostIDR)}
+                </div>
+              </>
+            ) : (
+              <div className="font-semibold">{formatCurrency(totalCostIDR)}</div>
+            )}
+          </div>
+        );
       }
     },
   ];
@@ -780,6 +797,53 @@ export function Batches() {
             </div>
           ) : undefined}
         />
+
+        {/* Summary Section */}
+        {batches.length > 0 && (
+          <div className="bg-gradient-to-r from-blue-50 to-green-50 rounded-lg shadow-lg p-6 border-2 border-blue-200">
+            <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
+              <DollarSign className="w-5 h-5 text-blue-600" />
+              Total Import Value Summary
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-2">
+                <p className="text-sm text-gray-600 font-medium">Total Value (USD)</p>
+                <p className="text-3xl font-bold text-green-700">
+                  {formatCurrency(
+                    batches.reduce((sum, batch) => {
+                      const totalUSD = batch.import_price_usd ? batch.import_price_usd * batch.import_quantity : 0;
+                      return sum + totalUSD;
+                    }, 0),
+                    'USD'
+                  )}
+                </p>
+              </div>
+              <div className="space-y-2">
+                <p className="text-sm text-gray-600 font-medium">Total Value (IDR)</p>
+                <p className="text-3xl font-bold text-blue-700">
+                  {formatCurrency(
+                    batches.reduce((sum, batch) => {
+                      const totalIDR = batch.import_price * batch.import_quantity;
+                      return sum + totalIDR;
+                    }, 0)
+                  )}
+                </p>
+              </div>
+            </div>
+            <div className="mt-4 pt-4 border-t border-blue-200">
+              <div className="flex justify-between items-center text-sm">
+                <span className="text-gray-600">Total Batches:</span>
+                <span className="font-semibold text-gray-900">{batches.length}</span>
+              </div>
+              <div className="flex justify-between items-center text-sm mt-1">
+                <span className="text-gray-600">Total Quantity:</span>
+                <span className="font-semibold text-gray-900">
+                  {batches.reduce((sum, batch) => sum + batch.import_quantity, 0).toLocaleString()} units
+                </span>
+              </div>
+            </div>
+          </div>
+        )}
 
         <Modal
           isOpen={modalOpen}
@@ -1151,7 +1215,7 @@ export function Batches() {
               <h3 className="text-xs font-semibold text-blue-900 mb-1.5">Total Cost Summary</h3>
               <div className="space-y-0.5 text-xs text-blue-800">
                 <div className="flex justify-between">
-                  <span>Import Price (IDR):</span>
+                  <span>Import Price (per unit):</span>
                   <span className="font-medium">
                     {formatCurrency(formData.import_price_usd * formData.exchange_rate_usd_to_idr)}
                   </span>
@@ -1183,9 +1247,29 @@ export function Batches() {
                     )}
                   </span>
                 </div>
-                <div className="border-t border-blue-300 pt-1.5 mt-1.5 flex justify-between">
-                  <span className="font-bold">Total Cost (IDR):</span>
-                  <span className="font-bold text-sm">{formatCurrency(calculateTotalCostIDR())}</span>
+                <div className="border-t border-blue-300 pt-1.5 mt-1.5 space-y-1">
+                  <div className="flex justify-between">
+                    <span className="font-bold">Total Cost (IDR):</span>
+                    <span className="font-bold text-sm">{formatCurrency(calculateTotalCostIDR())}</span>
+                  </div>
+                  {formData.import_quantity > 0 && (
+                    <div className="bg-green-50 border border-green-200 rounded px-2 py-1.5 mt-2">
+                      <div className="flex justify-between items-center">
+                        <span className="font-bold text-green-900">Total Batch Cost:</span>
+                        <div className="text-right">
+                          <div className="font-bold text-green-700">
+                            {formatCurrency(formData.import_price_usd * formData.import_quantity, 'USD')}
+                          </div>
+                          <div className="text-xs text-green-600">
+                            {formatCurrency((formData.import_price_usd * formData.exchange_rate_usd_to_idr) * formData.import_quantity)}
+                          </div>
+                        </div>
+                      </div>
+                      <div className="text-xs text-green-700 mt-0.5">
+                        {formatCurrency(formData.import_price_usd, 'USD')} × {formData.import_quantity} = {formatCurrency(formData.import_price_usd * formData.import_quantity, 'USD')}
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
