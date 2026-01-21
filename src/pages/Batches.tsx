@@ -238,7 +238,7 @@ export function Batches() {
         const batchUpdateData = {
           batch_number: formData.batch_number,
           product_id: formData.product_id,
-          import_container_id: formData.import_container_id || null,
+          import_container_id: formData.import_container_id && formData.import_container_id.trim() !== '' ? formData.import_container_id : null,
           import_date: formData.import_date,
           import_quantity: formData.import_quantity,
           current_stock: newCurrentStock,
@@ -283,7 +283,7 @@ export function Batches() {
         const batchData = {
           batch_number: formData.batch_number,
           product_id: formData.product_id,
-          import_container_id: formData.import_container_id || null,
+          import_container_id: formData.import_container_id && formData.import_container_id.trim() !== '' ? formData.import_container_id : null,
           import_date: formData.import_date,
           import_quantity: formData.import_quantity,
           current_stock: formData.import_quantity,
