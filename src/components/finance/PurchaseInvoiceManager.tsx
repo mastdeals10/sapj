@@ -1,48 +1,30 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../../lib/supabase';
-import { Plus, Edit, Trash2, Search, FileText, Eye, X, Upload, DollarSign } from 'lucide-react';
+import { Plus, Edit, Trash2, Search, Eye, X } from 'lucide-react';
 import { Modal } from '../Modal';
-import { FileUpload } from '../FileUpload';
 
 interface Supplier {
   id: string;
   company_name: string;
   npwp: string | null;
   pkp_status: boolean;
-  address: string | null;
-  contact_person: string | null;
-  phone: string | null;
-  email: string | null;
 }
 
 interface Product {
   id: string;
   product_name: string;
-  generic_name: string | null;
   unit: string;
   current_stock: number;
 }
 
-interface ChartOfAccount {
-  id: string;
-  account_code: string;
-  account_name: string;
-  account_type: string;
-}
-
 interface PurchaseInvoiceItem {
-  id?: string;
-  item_type: 'inventory' | 'fixed_asset' | 'expense' | 'freight' | 'duty' | 'insurance' | 'clearing' | 'other';
-  product_id: string | null;
-  product_name?: string;
-  description: string;
-  quantity: number;
+  product_id: string;
+  product_name: string;
   unit: string;
-  unit_price: number;
-  line_total: number;
-  expense_account_id: string | null;
-  asset_account_id: string | null;
-  tax_amount: number;
+  quantity: number;
+  rate: number;
+  amount: number;
+  narration: string;
 }
 
 interface PurchaseInvoice {
@@ -56,16 +38,8 @@ interface PurchaseInvoice {
   subtotal: number;
   tax_amount: number;
   total_amount: number;
-  paid_amount: number;
-  balance_amount: number;
   status: string;
-  faktur_pajak_number: string | null;
-  notes: string | null;
-  document_urls: string[] | null;
-  purchase_type: string;
-  requires_faktur_pajak: boolean;
-  suppliers?: { company_name: string; pkp_status: boolean };
-  journal_entry_id?: string | null;
+  suppliers?: { company_name: string };
 }
 
 interface PurchaseInvoiceManagerProps {
@@ -76,13 +50,9 @@ export function PurchaseInvoiceManager({ canManage }: PurchaseInvoiceManagerProp
   const [invoices, setInvoices] = useState<PurchaseInvoice[]>([]);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
-  const [accounts, setAccounts] = useState<ChartOfAccount[]>([]);
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
-  const [viewModal, setViewModal] = useState(false);
-  const [selectedInvoice, setSelectedInvoice] = useState<PurchaseInvoice | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
-  const [uploading, setUploading] = useState(false);
 
   const [formData, setFormData] = useState({
     invoice_number: '',
@@ -91,38 +61,37 @@ export function PurchaseInvoiceManager({ canManage }: PurchaseInvoiceManagerProp
     due_date: '',
     currency: 'IDR',
     exchange_rate: 1,
-    faktur_pajak_number: '',
+    tax_percent: 0,
     notes: '',
-    document_urls: [] as string[],
   });
 
   const [lineItems, setLineItems] = useState<PurchaseInvoiceItem[]>([
     {
-      item_type: 'inventory',
-      product_id: null,
-      description: '',
+      product_id: '',
+      product_name: '',
+      unit: '',
       quantity: 1,
-      unit: 'pcs',
-      unit_price: 0,
-      line_total: 0,
-      expense_account_id: null,
-      asset_account_id: null,
-      tax_amount: 0,
-    },
+      rate: 0,
+      amount: 0,
+      narration: ''
+    }
   ]);
 
   useEffect(() => {
     loadInvoices();
     loadSuppliers();
     loadProducts();
-    loadAccounts();
   }, []);
 
   const loadInvoices = async () => {
     try {
+      setLoading(true);
       const { data, error } = await supabase
         .from('purchase_invoices')
-        .select('*, suppliers(company_name, pkp_status)')
+        .select(`
+          *,
+          suppliers (company_name)
+        `)
         .order('invoice_date', { ascending: false });
 
       if (error) throw error;
@@ -135,47 +104,46 @@ export function PurchaseInvoiceManager({ canManage }: PurchaseInvoiceManagerProp
   };
 
   const loadSuppliers = async () => {
-    const { data } = await supabase
-      .from('suppliers')
-      .select('id, company_name, npwp, pkp_status, address, contact_person, phone, email')
-      .order('company_name');
-    setSuppliers(data || []);
+    try {
+      const { data, error } = await supabase
+        .from('suppliers')
+        .select('*')
+        .order('company_name');
+
+      if (error) throw error;
+      setSuppliers(data || []);
+    } catch (error) {
+      console.error('Error loading suppliers:', error);
+    }
   };
 
   const loadProducts = async () => {
-    const { data } = await supabase
-      .from('products')
-      .select('id, product_name, generic_name, unit, current_stock')
-      .order('product_name');
-    setProducts(data || []);
-  };
+    try {
+      const { data, error } = await supabase
+        .from('products')
+        .select('id, product_name, unit, current_stock')
+        .eq('is_active', true)
+        .order('product_name');
 
-  const loadAccounts = async () => {
-    const { data } = await supabase
-      .from('chart_of_accounts')
-      .select('id, account_code, account_name, account_type')
-      .in('account_type', ['Expense', 'Asset', 'Cost of Goods Sold'])
-      .order('account_code');
-    setAccounts(data || []);
+      if (error) throw error;
+      setProducts(data || []);
+    } catch (error) {
+      console.error('Error loading products:', error);
+    }
   };
-
-  const selectedSupplier = suppliers.find(s => s.id === formData.supplier_id);
 
   const handleAddLine = () => {
     setLineItems([
       ...lineItems,
       {
-        item_type: 'inventory',
-        product_id: null,
-        description: '',
+        product_id: '',
+        product_name: '',
+        unit: '',
         quantity: 1,
-        unit: 'pcs',
-        unit_price: 0,
-        line_total: 0,
-        expense_account_id: null,
-        asset_account_id: null,
-        tax_amount: 0,
-      },
+        rate: 0,
+        amount: 0,
+        narration: ''
+      }
     ]);
   };
 
@@ -187,40 +155,30 @@ export function PurchaseInvoiceManager({ canManage }: PurchaseInvoiceManagerProp
 
   const handleLineChange = (index: number, field: keyof PurchaseInvoiceItem, value: any) => {
     const newLines = [...lineItems];
-    newLines[index] = { ...newLines[index], [field]: value };
 
-    // Auto-calculate line total
-    if (field === 'quantity' || field === 'unit_price') {
-      newLines[index].line_total = newLines[index].quantity * newLines[index].unit_price;
-    }
-
-    // If item_type changes, clear product/account selections
-    if (field === 'item_type') {
-      newLines[index].product_id = null;
-      newLines[index].expense_account_id = null;
-      newLines[index].asset_account_id = null;
-      newLines[index].description = '';
-    }
-
-    // If product changes, auto-fill details
-    if (field === 'product_id' && value) {
+    if (field === 'product_id') {
       const product = products.find(p => p.id === value);
       if (product) {
-        newLines[index].description = product.product_name;
-        newLines[index].unit = product.unit;
+        newLines[index].product_id = value;
         newLines[index].product_name = product.product_name;
+        newLines[index].unit = product.unit;
+        newLines[index].narration = product.product_name;
       }
+    } else if (field === 'quantity' || field === 'rate') {
+      newLines[index][field] = parseFloat(value) || 0;
+      newLines[index].amount = newLines[index].quantity * newLines[index].rate;
+    } else {
+      newLines[index][field] = value;
     }
 
     setLineItems(newLines);
   };
 
   const calculateTotals = () => {
-    const subtotal = lineItems.reduce((sum, item) => sum + item.line_total, 0);
-    const taxTotal = lineItems.reduce((sum, item) => sum + item.tax_amount, 0);
-    const total = subtotal + taxTotal;
-
-    return { subtotal, taxTotal, total };
+    const subtotal = lineItems.reduce((sum, item) => sum + item.amount, 0);
+    const taxAmount = (subtotal * formData.tax_percent) / 100;
+    const total = subtotal + taxAmount;
+    return { subtotal, taxAmount, total };
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -236,34 +194,24 @@ export function PurchaseInvoiceManager({ canManage }: PurchaseInvoiceManagerProp
       return;
     }
 
-    if (lineItems.length === 0 || lineItems.every(item => item.line_total === 0)) {
+    if (lineItems.length === 0 || lineItems.every(item => item.amount === 0)) {
       alert('Please add at least one line item');
       return;
     }
 
-    // Validate exchange rate for USD
-    if (formData.currency === 'USD' && formData.exchange_rate <= 1) {
-      alert('Please enter a valid exchange rate for USD');
-      return;
-    }
-
-    // Validate required fields per item type
+    // Validate
     for (let i = 0; i < lineItems.length; i++) {
       const item = lineItems[i];
-      if (item.item_type === 'inventory' && !item.product_id) {
-        alert(`Line ${i + 1}: Please select a product for inventory items`);
+      if (!item.product_id) {
+        alert(`Line ${i + 1}: Please select a product`);
         return;
       }
-      if (item.item_type === 'expense' && !item.expense_account_id) {
-        alert(`Line ${i + 1}: Please select an expense account`);
+      if (item.quantity <= 0) {
+        alert(`Line ${i + 1}: Quantity must be greater than 0`);
         return;
       }
-      if (item.item_type === 'fixed_asset' && !item.asset_account_id) {
-        alert(`Line ${i + 1}: Please select an asset account`);
-        return;
-      }
-      if (!item.description.trim()) {
-        alert(`Line ${i + 1}: Please enter a description`);
+      if (item.rate <= 0) {
+        alert(`Line ${i + 1}: Rate must be greater than 0`);
         return;
       }
     }
@@ -281,15 +229,12 @@ export function PurchaseInvoiceManager({ canManage }: PurchaseInvoiceManagerProp
         currency: formData.currency,
         exchange_rate: formData.exchange_rate,
         subtotal: totals.subtotal,
-        tax_amount: totals.taxTotal,
+        tax_amount: totals.taxAmount,
         total_amount: totals.total,
         paid_amount: 0,
         balance_amount: totals.total,
         status: 'unpaid',
-        faktur_pajak_number: formData.faktur_pajak_number.trim() || null,
         notes: formData.notes.trim() || null,
-        document_urls: formData.document_urls,
-        requires_faktur_pajak: selectedSupplier?.pkp_status || false,
         created_by: userData.user?.id,
       };
 
@@ -302,76 +247,34 @@ export function PurchaseInvoiceManager({ canManage }: PurchaseInvoiceManagerProp
       if (invoiceError) throw invoiceError;
 
       // Insert line items
-      const itemsData = lineItems.map(item => ({
-        purchase_invoice_id: invoice.id,
-        item_type: item.item_type,
+      const itemsToInsert = lineItems.map(item => ({
+        invoice_id: invoice.id,
+        item_type: 'inventory',
         product_id: item.product_id,
-        description: item.description,
+        description: item.narration,
         quantity: item.quantity,
         unit: item.unit,
-        unit_price: item.unit_price,
-        line_total: item.line_total,
-        tax_amount: item.tax_amount,
-        expense_account_id: item.expense_account_id,
-        asset_account_id: item.asset_account_id,
+        unit_price: item.rate,
+        line_total: item.amount,
+        tax_amount: 0,
+        expense_account_id: null,
+        asset_account_id: null
       }));
 
       const { error: itemsError } = await supabase
         .from('purchase_invoice_items')
-        .insert(itemsData);
+        .insert(itemsToInsert);
 
       if (itemsError) throw itemsError;
 
-      alert('Purchase invoice created successfully!');
-      resetForm();
+      alert('Purchase invoice created successfully');
       setModalOpen(false);
-      loadInvoices();
+      resetForm();
+      await loadInvoices();
     } catch (error: any) {
-      console.error('Error creating purchase invoice:', error);
-      alert(`Error: ${error.message}`);
+      console.error('Error saving invoice:', error);
+      alert('Failed to save invoice: ' + error.message);
     }
-  };
-
-  const handleFileUpload = async (files: File[]) => {
-    setUploading(true);
-    try {
-      const uploadedUrls: string[] = [];
-
-      for (const file of files) {
-        const fileExt = file.name.split('.').pop();
-        const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
-        const filePath = `purchase-invoices/${fileName}`;
-
-        const { error: uploadError, data } = await supabase.storage
-          .from('documents')
-          .upload(filePath, file);
-
-        if (uploadError) throw uploadError;
-
-        const { data: { publicUrl } } = supabase.storage
-          .from('documents')
-          .getPublicUrl(filePath);
-
-        uploadedUrls.push(publicUrl);
-      }
-
-      setFormData(prev => ({
-        ...prev,
-        document_urls: [...prev.document_urls, ...uploadedUrls],
-      }));
-    } catch (error: any) {
-      console.error('Error uploading files:', error);
-      alert(`Error uploading files: ${error.message}`);
-    } finally {
-      setUploading(false);
-    }
-  };
-
-  const handleRemoveDocument = (index: number) => {
-    setFormData(prev => ({
-      ...prev,
-      document_urls: prev.document_urls.filter((_, i) => i !== index),
-    }));
   };
 
   const resetForm = () => {
@@ -382,48 +285,37 @@ export function PurchaseInvoiceManager({ canManage }: PurchaseInvoiceManagerProp
       due_date: '',
       currency: 'IDR',
       exchange_rate: 1,
-      faktur_pajak_number: '',
+      tax_percent: 0,
       notes: '',
-      document_urls: [],
     });
-    setLineItems([
-      {
-        item_type: 'inventory',
-        product_id: null,
-        description: '',
-        quantity: 1,
-        unit: 'pcs',
-        unit_price: 0,
-        line_total: 0,
-        expense_account_id: null,
-        asset_account_id: null,
-        tax_amount: 0,
-      },
-    ]);
+    setLineItems([{
+      product_id: '',
+      product_name: '',
+      unit: '',
+      quantity: 1,
+      rate: 0,
+      amount: 0,
+      narration: ''
+    }]);
   };
 
-  const filteredInvoices = invoices.filter(inv =>
-    inv.invoice_number.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    inv.suppliers?.company_name?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
-
   const totals = calculateTotals();
-
-  if (loading) {
-    return <div className="p-8 text-center">Loading...</div>;
-  }
+  const filteredInvoices = invoices.filter(invoice =>
+    invoice.invoice_number.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    invoice.suppliers?.company_name.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-bold text-gray-900">Purchase Invoices</h2>
+      <div className="flex justify-between items-center">
+        <h2 className="text-xl font-semibold text-gray-900">Purchase Invoices</h2>
         {canManage && (
           <button
             onClick={() => {
               resetForm();
               setModalOpen(true);
             }}
-            className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
           >
             <Plus className="w-4 h-4" />
             New Purchase Invoice
@@ -431,54 +323,41 @@ export function PurchaseInvoiceManager({ canManage }: PurchaseInvoiceManagerProp
         )}
       </div>
 
-      <div className="flex items-center gap-4">
-        <div className="flex-1 relative">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-          <input
-            type="text"
-            placeholder="Search by invoice number or supplier..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-          />
-        </div>
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+        <input
+          type="text"
+          placeholder="Search by invoice number or supplier..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+        />
       </div>
 
       <div className="bg-white rounded-lg shadow overflow-hidden">
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gray-50">
             <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Invoice #
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Supplier
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Date
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Currency
-              </th>
-              <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Total
-              </th>
-              <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Balance
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Status
-              </th>
-              <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Actions
-              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Invoice #</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Supplier</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
+              <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Amount</th>
+              <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Balance</th>
+              <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase">Status</th>
+              <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Actions</th>
             </tr>
           </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
-            {filteredInvoices.length === 0 ? (
+          <tbody className="divide-y divide-gray-200">
+            {loading ? (
               <tr>
-                <td colSpan={8} className="px-6 py-12 text-center text-gray-500">
-                  No purchase invoices found. Create your first one!
+                <td colSpan={7} className="px-6 py-12 text-center text-gray-500">
+                  Loading...
+                </td>
+              </tr>
+            ) : filteredInvoices.length === 0 ? (
+              <tr>
+                <td colSpan={7} className="px-6 py-12 text-center text-gray-500">
+                  No invoices found
                 </td>
               </tr>
             ) : (
@@ -493,23 +372,15 @@ export function PurchaseInvoiceManager({ canManage }: PurchaseInvoiceManagerProp
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                     {new Date(invoice.invoice_date).toLocaleDateString()}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {invoice.currency}
-                    {invoice.currency === 'USD' && (
-                      <span className="text-xs text-gray-400 ml-1">
-                        @ {invoice.exchange_rate.toLocaleString()}
-                      </span>
-                    )}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-900 font-medium">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-right font-medium">
                     {invoice.currency} {invoice.total_amount.toLocaleString()}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-right font-medium">
-                    <span className={invoice.balance_amount > 0 ? 'text-red-600' : 'text-green-600'}>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-right">
+                    <span className={invoice.balance_amount > 0 ? 'text-red-600 font-medium' : 'text-green-600'}>
                       {invoice.currency} {invoice.balance_amount.toLocaleString()}
                     </span>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
+                  <td className="px-6 py-4 whitespace-nowrap text-center">
                     <span className={`px-2 py-1 text-xs font-semibold rounded-full ${
                       invoice.status === 'paid'
                         ? 'bg-green-100 text-green-800'
@@ -520,15 +391,8 @@ export function PurchaseInvoiceManager({ canManage }: PurchaseInvoiceManagerProp
                       {invoice.status}
                     </span>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                    <button
-                      onClick={() => {
-                        setSelectedInvoice(invoice);
-                        setViewModal(true);
-                      }}
-                      className="text-blue-600 hover:text-blue-900 mr-3"
-                      title="View Details"
-                    >
+                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm">
+                    <button className="text-blue-600 hover:text-blue-900">
                       <Eye className="w-4 h-4" />
                     </button>
                   </td>
@@ -539,7 +403,7 @@ export function PurchaseInvoiceManager({ canManage }: PurchaseInvoiceManagerProp
         </table>
       </div>
 
-      {/* Create/Edit Modal */}
+      {/* Create Modal */}
       <Modal
         isOpen={modalOpen}
         onClose={() => {
@@ -547,10 +411,11 @@ export function PurchaseInvoiceManager({ canManage }: PurchaseInvoiceManagerProp
           resetForm();
         }}
         title="New Purchase Invoice"
+        maxWidth="max-w-7xl"
       >
         <form onSubmit={handleSubmit} className="space-y-6">
           {/* Header Section */}
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-4 gap-4">
             <div className="col-span-2">
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Supplier *
@@ -559,18 +424,15 @@ export function PurchaseInvoiceManager({ canManage }: PurchaseInvoiceManagerProp
                 value={formData.supplier_id}
                 onChange={(e) => setFormData({ ...formData, supplier_id: e.target.value })}
                 required
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
               >
                 <option value="">Select Supplier</option>
                 {suppliers.map((supplier) => (
                   <option key={supplier.id} value={supplier.id}>
-                    {supplier.company_name} {supplier.pkp_status && '(PKP)'}
+                    {supplier.company_name}
                   </option>
                 ))}
               </select>
-              {selectedSupplier && selectedSupplier.npwp && (
-                <p className="text-xs text-gray-500 mt-1">NPWP: {selectedSupplier.npwp}</p>
-              )}
             </div>
 
             <div>
@@ -582,8 +444,7 @@ export function PurchaseInvoiceManager({ canManage }: PurchaseInvoiceManagerProp
                 value={formData.invoice_number}
                 onChange={(e) => setFormData({ ...formData, invoice_number: e.target.value })}
                 required
-                placeholder="INV-001"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
               />
             </div>
 
@@ -596,7 +457,7 @@ export function PurchaseInvoiceManager({ canManage }: PurchaseInvoiceManagerProp
                 value={formData.invoice_date}
                 onChange={(e) => setFormData({ ...formData, invoice_date: e.target.value })}
                 required
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
               />
             </div>
 
@@ -608,7 +469,7 @@ export function PurchaseInvoiceManager({ canManage }: PurchaseInvoiceManagerProp
                 type="date"
                 value={formData.due_date}
                 onChange={(e) => setFormData({ ...formData, due_date: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
               />
             </div>
 
@@ -618,8 +479,12 @@ export function PurchaseInvoiceManager({ canManage }: PurchaseInvoiceManagerProp
               </label>
               <select
                 value={formData.currency}
-                onChange={(e) => setFormData({ ...formData, currency: e.target.value, exchange_rate: e.target.value === 'IDR' ? 1 : formData.exchange_rate })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                onChange={(e) => setFormData({
+                  ...formData,
+                  currency: e.target.value,
+                  exchange_rate: e.target.value === 'IDR' ? 1 : formData.exchange_rate
+                })}
+                className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
               >
                 <option value="IDR">IDR</option>
                 <option value="USD">USD</option>
@@ -629,7 +494,7 @@ export function PurchaseInvoiceManager({ canManage }: PurchaseInvoiceManagerProp
             {formData.currency === 'USD' && (
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Exchange Rate * (1 USD = ? IDR)
+                  Exchange Rate *
                 </label>
                 <input
                   type="number"
@@ -639,22 +504,7 @@ export function PurchaseInvoiceManager({ canManage }: PurchaseInvoiceManagerProp
                   step="0.01"
                   required
                   placeholder="15750"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-            )}
-
-            {selectedSupplier?.pkp_status && (
-              <div className="col-span-2">
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Faktur Pajak Number
-                </label>
-                <input
-                  type="text"
-                  value={formData.faktur_pajak_number}
-                  onChange={(e) => setFormData({ ...formData, faktur_pajak_number: e.target.value })}
-                  placeholder="010.000-00.00000000"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
                 />
               </div>
             )}
@@ -663,40 +513,12 @@ export function PurchaseInvoiceManager({ canManage }: PurchaseInvoiceManagerProp
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Notes
               </label>
-              <textarea
+              <input
+                type="text"
                 value={formData.notes}
                 onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                rows={2}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
               />
-            </div>
-
-            <div className="col-span-2">
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Attachments (Supplier Invoice)
-              </label>
-              <FileUpload
-                onUpload={handleFileUpload}
-                accept=".pdf,.jpg,.jpeg,.png"
-                multiple
-                disabled={uploading}
-              />
-              {formData.document_urls.length > 0 && (
-                <div className="mt-2 space-y-1">
-                  {formData.document_urls.map((url, index) => (
-                    <div key={index} className="flex items-center justify-between bg-gray-50 px-3 py-2 rounded">
-                      <span className="text-sm text-gray-600 truncate">{url.split('/').pop()}</span>
-                      <button
-                        type="button"
-                        onClick={() => handleRemoveDocument(index)}
-                        className="text-red-600 hover:text-red-800"
-                      >
-                        <X className="w-4 h-4" />
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
             </div>
           </div>
 
@@ -707,290 +529,185 @@ export function PurchaseInvoiceManager({ canManage }: PurchaseInvoiceManagerProp
               <button
                 type="button"
                 onClick={handleAddLine}
-                className="inline-flex items-center gap-1 px-3 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700"
+                className="flex items-center gap-1 px-3 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700"
               >
                 <Plus className="w-4 h-4" />
                 Add Line
               </button>
             </div>
 
-            <div className="space-y-4 max-h-96 overflow-y-auto">
+            <div className="space-y-4">
               {lineItems.map((item, index) => (
-                <div key={index} className="border border-gray-200 rounded-lg p-4 space-y-3">
-                  <div className="flex items-start justify-between">
-                    <span className="text-sm font-medium text-gray-700">Line {index + 1}</span>
-                    {lineItems.length > 1 && (
-                      <button
-                        type="button"
-                        onClick={() => handleRemoveLine(index)}
-                        className="text-red-600 hover:text-red-800"
-                      >
-                        <X className="w-4 h-4" />
-                      </button>
-                    )}
-                  </div>
-
-                  <div className="grid grid-cols-3 gap-3">
-                    <div>
+                <div key={index} className="border border-gray-200 rounded-lg p-4">
+                  <div className="flex items-center gap-3 mb-3">
+                    {/* Product */}
+                    <div className="flex-1">
                       <label className="block text-xs font-medium text-gray-700 mb-1">
-                        Type *
+                        Product *
                       </label>
                       <select
-                        value={item.item_type}
-                        onChange={(e) => handleLineChange(index, 'item_type', e.target.value)}
-                        className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-blue-500"
+                        value={item.product_id}
+                        onChange={(e) => handleLineChange(index, 'product_id', e.target.value)}
+                        required
+                        className="w-full px-2 py-1.5 text-sm border rounded focus:ring-2 focus:ring-blue-500"
                       >
-                        <option value="inventory">Inventory (Stock)</option>
-                        <option value="fixed_asset">Fixed Asset</option>
-                        <option value="expense">Expense</option>
-                        <option value="freight">Freight</option>
-                        <option value="duty">Import Duty</option>
-                        <option value="insurance">Insurance</option>
-                        <option value="clearing">Clearing & Forwarding</option>
-                        <option value="other">Other Cost</option>
+                        <option value="">Select Product</option>
+                        {products.map((product) => (
+                          <option key={product.id} value={product.id}>
+                            {product.product_name} (Stock: {product.current_stock})
+                          </option>
+                        ))}
                       </select>
                     </div>
 
-                    {item.item_type === 'inventory' ? (
-                      <div className="col-span-2">
-                        <label className="block text-xs font-medium text-gray-700 mb-1">
-                          Product *
-                        </label>
-                        <select
-                          value={item.product_id || ''}
-                          onChange={(e) => handleLineChange(index, 'product_id', e.target.value)}
-                          className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-blue-500"
-                        >
-                          <option value="">Select Product</option>
-                          {products.map((product) => (
-                            <option key={product.id} value={product.id}>
-                              {product.product_name} (Stock: {product.current_stock})
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                    ) : item.item_type === 'expense' ? (
-                      <div className="col-span-2">
-                        <label className="block text-xs font-medium text-gray-700 mb-1">
-                          Expense Account *
-                        </label>
-                        <select
-                          value={item.expense_account_id || ''}
-                          onChange={(e) => handleLineChange(index, 'expense_account_id', e.target.value)}
-                          className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-blue-500"
-                        >
-                          <option value="">Select Account</option>
-                          {accounts.filter(a => a.account_type === 'Expense' || a.account_type === 'Cost of Goods Sold').map((account) => (
-                            <option key={account.id} value={account.id}>
-                              {account.account_code} - {account.account_name}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                    ) : item.item_type === 'fixed_asset' ? (
-                      <div className="col-span-2">
-                        <label className="block text-xs font-medium text-gray-700 mb-1">
-                          Asset Account *
-                        </label>
-                        <select
-                          value={item.asset_account_id || ''}
-                          onChange={(e) => handleLineChange(index, 'asset_account_id', e.target.value)}
-                          className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-blue-500"
-                        >
-                          <option value="">Select Account</option>
-                          {accounts.filter(a => a.account_type === 'Asset').map((account) => (
-                            <option key={account.id} value={account.id}>
-                              {account.account_code} - {account.account_name}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                    ) : (
-                      <div className="col-span-2">
-                        <label className="block text-xs font-medium text-gray-700 mb-1">
-                          Ledger (Optional - defaults to Inventory)
-                        </label>
-                        <select
-                          value={item.expense_account_id || ''}
-                          onChange={(e) => handleLineChange(index, 'expense_account_id', e.target.value)}
-                          className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-blue-500"
-                        >
-                          <option value="">Capitalize to Inventory (Default)</option>
-                          {accounts.filter(a => a.account_type === 'Expense' || a.account_type === 'Cost of Goods Sold').map((account) => (
-                            <option key={account.id} value={account.id}>
-                              {account.account_code} - {account.account_name}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                    )}
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-medium text-gray-700 mb-1">
-                      Description *
-                    </label>
-                    <input
-                      type="text"
-                      value={item.description}
-                      onChange={(e) => handleLineChange(index, 'description', e.target.value)}
-                      placeholder="Item description"
-                      className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-blue-500"
-                    />
-                  </div>
-
-                  <div className="grid grid-cols-5 gap-3">
-                    <div>
-                      <label className="block text-xs font-medium text-gray-700 mb-1">
-                        Qty *
-                      </label>
-                      <input
-                        type="number"
-                        value={item.quantity}
-                        onChange={(e) => handleLineChange(index, 'quantity', parseFloat(e.target.value) || 0)}
-                        min="0"
-                        step="0.01"
-                        className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-blue-500"
-                      />
-                    </div>
-                    <div>
+                    {/* Unit (Display Only) */}
+                    <div className="w-24">
                       <label className="block text-xs font-medium text-gray-700 mb-1">
                         Unit
                       </label>
                       <input
                         type="text"
                         value={item.unit}
-                        onChange={(e) => handleLineChange(index, 'unit', e.target.value)}
-                        placeholder="pcs"
-                        className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-blue-500"
+                        disabled
+                        className="w-full px-2 py-1.5 text-sm border rounded bg-gray-50 text-gray-600"
                       />
                     </div>
-                    <div>
+
+                    {/* Qty */}
+                    <div className="w-28">
+                      <label className="block text-xs font-medium text-gray-700 mb-1">
+                        Qty *
+                      </label>
+                      <input
+                        type="number"
+                        value={item.quantity}
+                        onChange={(e) => handleLineChange(index, 'quantity', e.target.value)}
+                        min="0.01"
+                        step="0.01"
+                        required
+                        className="w-full px-2 py-1.5 text-sm border rounded focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+
+                    {/* Rate */}
+                    <div className="w-32">
                       <label className="block text-xs font-medium text-gray-700 mb-1">
                         Rate *
                       </label>
                       <input
                         type="number"
-                        value={item.unit_price}
-                        onChange={(e) => handleLineChange(index, 'unit_price', parseFloat(e.target.value) || 0)}
+                        value={item.rate}
+                        onChange={(e) => handleLineChange(index, 'rate', e.target.value)}
                         min="0"
                         step="0.01"
-                        className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-blue-500"
+                        required
+                        className="w-full px-2 py-1.5 text-sm border rounded focus:ring-2 focus:ring-blue-500"
                       />
                     </div>
-                    <div>
-                      <label className="block text-xs font-medium text-gray-700 mb-1">
-                        Tax
-                      </label>
-                      <input
-                        type="number"
-                        value={item.tax_amount}
-                        onChange={(e) => handleLineChange(index, 'tax_amount', parseFloat(e.target.value) || 0)}
-                        min="0"
-                        step="0.01"
-                        className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-blue-500"
-                      />
-                    </div>
-                    <div>
+
+                    {/* Amount (Display Only) */}
+                    <div className="w-36">
                       <label className="block text-xs font-medium text-gray-700 mb-1">
                         Amount
                       </label>
                       <input
                         type="text"
-                        value={item.line_total.toLocaleString()}
-                        readOnly
-                        className="w-full px-2 py-1.5 text-sm border border-gray-200 rounded bg-gray-50 font-medium"
+                        value={item.amount.toLocaleString()}
+                        disabled
+                        className="w-full px-2 py-1.5 text-sm border rounded bg-gray-50 text-gray-900 font-medium text-right"
                       />
                     </div>
+
+                    {/* Remove Button */}
+                    {lineItems.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveLine(index)}
+                        className="mt-5 text-red-600 hover:text-red-800"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Narration - Full Width */}
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">
+                      Narration
+                    </label>
+                    <input
+                      type="text"
+                      value={item.narration}
+                      onChange={(e) => handleLineChange(index, 'narration', e.target.value)}
+                      placeholder="Additional description..."
+                      className="w-full px-2 py-1.5 text-sm border rounded focus:ring-2 focus:ring-blue-500"
+                    />
                   </div>
                 </div>
               ))}
             </div>
+          </div>
 
-            {/* Totals Summary */}
-            <div className="mt-6 border-t pt-4 space-y-2">
-              <div className="flex justify-between text-sm">
-                <span className="text-gray-600">Subtotal:</span>
-                <span className="font-medium">{formData.currency} {totals.subtotal.toLocaleString()}</span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-gray-600">Tax:</span>
-                <span className="font-medium">{formData.currency} {totals.taxTotal.toLocaleString()}</span>
-              </div>
-              <div className="flex justify-between text-lg font-bold border-t pt-2">
-                <span>Total:</span>
-                <span className="text-blue-600">{formData.currency} {totals.total.toLocaleString()}</span>
-              </div>
-              {formData.currency === 'USD' && formData.exchange_rate > 1 && (
-                <div className="flex justify-between text-sm text-gray-500">
-                  <span>Equivalent (IDR):</span>
-                  <span>IDR {(totals.total * formData.exchange_rate).toLocaleString()}</span>
+          {/* Totals Section */}
+          <div className="border-t pt-6">
+            <div className="flex justify-end">
+              <div className="w-96 space-y-3">
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-gray-600">Subtotal:</span>
+                  <span className="text-sm font-medium">
+                    {formData.currency} {totals.subtotal.toLocaleString()}
+                  </span>
                 </div>
-              )}
+
+                <div className="flex justify-between items-center gap-4">
+                  <label className="text-sm text-gray-600">Tax %:</label>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="number"
+                      value={formData.tax_percent}
+                      onChange={(e) => setFormData({ ...formData, tax_percent: parseFloat(e.target.value) || 0 })}
+                      min="0"
+                      max="100"
+                      step="0.01"
+                      className="w-20 px-2 py-1 text-sm border rounded focus:ring-2 focus:ring-blue-500"
+                    />
+                    <span className="text-sm">%</span>
+                    <span className="text-sm font-medium w-32 text-right">
+                      {formData.currency} {totals.taxAmount.toLocaleString()}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="flex justify-between items-center border-t pt-3">
+                  <span className="text-base font-semibold text-gray-900">Total:</span>
+                  <span className="text-lg font-bold text-blue-600">
+                    {formData.currency} {totals.total.toLocaleString()}
+                  </span>
+                </div>
+              </div>
             </div>
           </div>
 
-          {/* Action Buttons */}
-          <div className="flex justify-end gap-3 pt-6 border-t">
+          <div className="flex justify-end gap-3 pt-4 border-t">
             <button
               type="button"
               onClick={() => {
                 setModalOpen(false);
                 resetForm();
               }}
-              className="px-6 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
+              className="px-4 py-2 text-gray-700 border rounded-lg hover:bg-gray-50"
             >
               Cancel
             </button>
             <button
               type="submit"
-              disabled={uploading}
-              className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
             >
-              {uploading ? 'Uploading...' : 'Create Invoice'}
+              Create Invoice
             </button>
           </div>
         </form>
       </Modal>
-
-      {/* View Modal */}
-      {selectedInvoice && (
-        <Modal
-          isOpen={viewModal}
-          onClose={() => {
-            setViewModal(false);
-            setSelectedInvoice(null);
-          }}
-          title={`Purchase Invoice: ${selectedInvoice.invoice_number}`}
-        >
-          <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-4 text-sm">
-              <div>
-                <p className="text-gray-600">Supplier:</p>
-                <p className="font-medium">{selectedInvoice.suppliers?.company_name}</p>
-              </div>
-              <div>
-                <p className="text-gray-600">Invoice Date:</p>
-                <p className="font-medium">{new Date(selectedInvoice.invoice_date).toLocaleDateString()}</p>
-              </div>
-              <div>
-                <p className="text-gray-600">Currency:</p>
-                <p className="font-medium">{selectedInvoice.currency}</p>
-              </div>
-              <div>
-                <p className="text-gray-600">Total:</p>
-                <p className="font-medium text-lg">{selectedInvoice.currency} {selectedInvoice.total_amount.toLocaleString()}</p>
-              </div>
-            </div>
-            {selectedInvoice.notes && (
-              <div>
-                <p className="text-gray-600 text-sm">Notes:</p>
-                <p className="text-sm">{selectedInvoice.notes}</p>
-              </div>
-            )}
-          </div>
-        </Modal>
-      )}
     </div>
   );
 }
