@@ -437,32 +437,32 @@ export function CreditNotes() {
     {
       key: 'credit_note_number',
       label: 'Credit Note #',
-      render: (cn: CreditNote) => cn.credit_note_number || 'Pending'
+      render: (value: any, cn: CreditNote) => cn.credit_note_number || 'Pending'
     },
     {
       key: 'credit_note_date',
       label: 'Date',
-      render: (cn: CreditNote) => new Date(cn.credit_note_date).toLocaleDateString()
+      render: (value: any, cn: CreditNote) => new Date(cn.credit_note_date).toLocaleDateString()
     },
     {
       key: 'customer',
       label: 'Customer',
-      render: (cn: CreditNote) => cn.customers?.company_name || 'N/A'
+      render: (value: any, cn: CreditNote) => cn.customers?.company_name || 'N/A'
     },
     {
       key: 'original_invoice_number',
       label: 'Original Invoice',
-      render: (cn: CreditNote) => cn.original_invoice_number || 'N/A'
+      render: (value: any, cn: CreditNote) => cn.original_invoice_number || 'N/A'
     },
     {
       key: 'total_amount',
       label: 'Amount',
-      render: (cn: CreditNote) => `${cn.currency} ${cn.total_amount.toLocaleString('id-ID', { minimumFractionDigits: 2 })}`
+      render: (value: any, cn: CreditNote) => `${cn.currency} ${cn.total_amount.toLocaleString('id-ID', { minimumFractionDigits: 2 })}`
     },
     {
       key: 'status',
       label: 'Status',
-      render: (cn: CreditNote) => (
+      render: (value: any, cn: CreditNote) => (
         <span className={`inline-block px-2 py-1 rounded-full text-xs font-medium ${
           cn.status === 'approved' ? 'bg-green-100 text-green-800' :
           cn.status === 'rejected' ? 'bg-red-100 text-red-800' :
@@ -475,7 +475,7 @@ export function CreditNotes() {
     {
       key: 'reason',
       label: 'Reason',
-      render: (cn: CreditNote) => (
+      render: (value: any, cn: CreditNote) => (
         <span className="text-sm text-gray-600 truncate max-w-xs block">
           {cn.reason}
         </span>

@@ -153,7 +153,7 @@ export function Customers() {
       key: 'contact_person',
       label: t('customers.contactPerson'),
       sortable: true,
-      render: (customer: Customer) => (
+      render: (value: any, customer: Customer) => (
         <div>
           <div>{customer.contact_person}</div>
           <div className="flex items-center gap-2 text-xs text-gray-500 mt-1">

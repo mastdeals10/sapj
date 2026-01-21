@@ -505,32 +505,32 @@ export default function MaterialReturns() {
     {
       key: 'return_number',
       label: 'Return #',
-      render: (ret: MaterialReturn) => ret.return_number || 'Pending'
+      render: (value: any, ret: MaterialReturn) => ret.return_number || 'Pending'
     },
     {
       key: 'return_date',
       label: 'Date',
-      render: (ret: MaterialReturn) => new Date(ret.return_date).toLocaleDateString()
+      render: (value: any, ret: MaterialReturn) => new Date(ret.return_date).toLocaleDateString()
     },
     {
       key: 'customer',
       label: 'Customer',
-      render: (ret: MaterialReturn) => ret.customers?.company_name || 'N/A'
+      render: (value: any, ret: MaterialReturn) => ret.customers?.company_name || 'N/A'
     },
     {
       key: 'dc_number',
       label: 'Original DC',
-      render: (ret: MaterialReturn) => ret.delivery_challans?.challan_number || 'N/A'
+      render: (value: any, ret: MaterialReturn) => ret.delivery_challans?.challan_number || 'N/A'
     },
     {
       key: 'return_type',
       label: 'Type',
-      render: (ret: MaterialReturn) => ret.return_type.replace('_', ' ')
+      render: (value: any, ret: MaterialReturn) => ret.return_type.replace('_', ' ')
     },
     {
       key: 'status',
       label: 'Status',
-      render: (ret: MaterialReturn) => (
+      render: (value: any, ret: MaterialReturn) => (
         <span className={`inline-block px-2 py-1 rounded-full text-xs font-medium ${
           ret.status === 'approved' ? 'bg-green-100 text-green-800' :
           ret.status === 'rejected' ? 'bg-red-100 text-red-800' :

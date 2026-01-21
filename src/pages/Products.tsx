@@ -121,7 +121,33 @@ export function Products() {
         })
       );
 
-      setViewingSources(sourcesWithDocs);
+      // Also load product documents (legacy/default)
+      const { data: productDocs } = await supabase
+        .from('product_documents')
+        .select('*')
+        .eq('product_id', productId);
+
+      // If there are product documents, add them as a "Default" source
+      if (productDocs && productDocs.length > 0) {
+        const defaultSource = {
+          id: 'default',
+          supplier_name: 'Product Documents',
+          grade: '-',
+          country: null,
+          remarks: 'General product documents',
+          created_at: new Date().toISOString(),
+          documents: productDocs.map(doc => ({
+            id: doc.id,
+            doc_type: doc.document_type,
+            original_filename: doc.file_name,
+            file_url: doc.file_url,
+            file_size: doc.file_size
+          }))
+        };
+        setViewingSources([defaultSource, ...sourcesWithDocs]);
+      } else {
+        setViewingSources(sourcesWithDocs);
+      }
     } catch (error) {
       console.error('Error loading sources:', error);
     }

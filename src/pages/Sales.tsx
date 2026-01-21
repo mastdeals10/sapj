@@ -1092,26 +1092,26 @@ export function Sales() {
     {
       key: 'customer',
       label: 'Customer',
-      render: (inv: SalesInvoice) => (
+      render: (value: any, inv: SalesInvoice) => (
         <div className="font-medium">{inv.customers?.company_name}</div>
       )
     },
     {
       key: 'invoice_date',
       label: 'Date',
-      render: (inv: SalesInvoice) => new Date(inv.invoice_date).toLocaleDateString()
+      render: (value: any, inv: SalesInvoice) => new Date(inv.invoice_date).toLocaleDateString()
     },
     {
       key: 'total_amount',
       label: 'Total Amount',
-      render: (inv: SalesInvoice) => (
+      render: (value: any, inv: SalesInvoice) => (
         <span className="font-medium">Rp {inv.total_amount.toLocaleString('id-ID', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
       )
     },
     {
       key: 'paid_amount',
       label: 'Paid Amount',
-      render: (inv: SalesInvoice) => (
+      render: (value: any, inv: SalesInvoice) => (
         <span className="text-green-600 font-medium">
           Rp {(inv.paid_amount || 0).toLocaleString('id-ID', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
         </span>
@@ -1120,7 +1120,7 @@ export function Sales() {
     {
       key: 'balance_amount',
       label: 'Balance',
-      render: (inv: SalesInvoice) => (
+      render: (value: any, inv: SalesInvoice) => (
         <span className={`font-medium ${
           (inv.balance_amount || 0) === 0 ? 'text-gray-400' : 'text-orange-600'
         }`}>
@@ -1131,7 +1131,7 @@ export function Sales() {
     {
       key: 'payment_status',
       label: 'Payment Status',
-      render: (inv: SalesInvoice) => (
+      render: (value: any, inv: SalesInvoice) => (
         <span className={`inline-block px-2 py-1 rounded-full text-xs font-medium ${
           inv.payment_status === 'paid' ? 'bg-green-100 text-green-800' :
           inv.payment_status === 'partial' ? 'bg-yellow-100 text-yellow-800' :

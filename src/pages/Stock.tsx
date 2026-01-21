@@ -157,7 +157,7 @@ export function Stock() {
     {
       key: 'product_name',
       label: 'Product',
-      render: (item: StockSummary) => (
+      render: (value: any, item: StockSummary) => (
         <div className="py-1">
           <span className="font-medium text-gray-900">{item.product_name}</span>
           <span className="text-xs text-gray-500 ml-2 capitalize">({item.category})</span>
@@ -167,7 +167,7 @@ export function Stock() {
     {
       key: 'stock',
       label: 'Total Stock',
-      render: (item: StockSummary) => (
+      render: (value: any, item: StockSummary) => (
         <span className={`font-semibold ${getStockStatusColor(item.total_current_stock, item.active_batch_count)}`}>
           {item.total_current_stock.toLocaleString()} {item.unit}
         </span>
@@ -176,7 +176,7 @@ export function Stock() {
     {
       key: 'reserved',
       label: 'Reserved',
-      render: (item: StockSummary) => {
+      render: (value: any, item: StockSummary) => {
         if (item.reserved_stock === 0) return <span className="text-gray-400">-</span>;
         if (item.reserved_stock < 0) {
           return (
@@ -195,7 +195,7 @@ export function Stock() {
     {
       key: 'available',
       label: 'Available',
-      render: (item: StockSummary) => (
+      render: (value: any, item: StockSummary) => (
         <span className="text-green-600 font-semibold">
           {item.available_quantity.toLocaleString()} {item.unit}
         </span>
@@ -204,7 +204,7 @@ export function Stock() {
     {
       key: 'batches',
       label: 'Batches',
-      render: (item: StockSummary) => (
+      render: (value: any, item: StockSummary) => (
         <span className="text-sm">
           <span className="text-blue-600 font-medium">{item.active_batch_count}</span>
           {item.expired_batch_count > 0 && (

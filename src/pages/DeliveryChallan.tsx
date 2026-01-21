@@ -882,19 +882,19 @@ export function DeliveryChallan() {
     {
       key: 'customer',
       label: 'Customer',
-      render: (challan: DeliveryChallan) => (
+      render: (value: any, challan: DeliveryChallan) => (
         <div className="font-medium">{challan.customers?.company_name}</div>
       )
     },
     {
       key: 'challan_date',
       label: 'Date',
-      render: (challan: DeliveryChallan) => new Date(challan.challan_date).toLocaleDateString()
+      render: (value: any, challan: DeliveryChallan) => new Date(challan.challan_date).toLocaleDateString()
     },
     {
       key: 'approval_status',
       label: 'Status / Approval',
-      render: (challan: DeliveryChallan) => {
+      render: (value: any, challan: DeliveryChallan) => {
         const statusColors = {
           pending_approval: 'bg-yellow-100 text-yellow-800',
           approved: 'bg-green-100 text-green-800',
@@ -948,7 +948,7 @@ export function DeliveryChallan() {
     {
       key: 'invoicing_status',
       label: 'Invoicing Status',
-      render: (challan: DeliveryChallan) => {
+      render: (value: any, challan: DeliveryChallan) => {
         const statusColors = {
           not_invoiced: 'bg-gray-100 text-gray-700',
           partially_invoiced: 'bg-yellow-100 text-yellow-700',
