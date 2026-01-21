@@ -5,7 +5,8 @@ import { Modal } from '../components/Modal';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
-import { Plus, Edit, Trash2, FileText, ExternalLink, Upload, X } from 'lucide-react';
+import { Plus, Edit, Trash2, FileText, ExternalLink, Upload, X, Eye } from 'lucide-react';
+import { ProductSources } from '../components/ProductSources';
 
 interface Product {
   id: string;
@@ -51,6 +52,9 @@ export function Products() {
   const [selectedProductName, setSelectedProductName] = useState<string>('');
   const [uploadingFiles, setUploadingFiles] = useState<any[]>([]);
   const [formUploadingFiles, setFormUploadingFiles] = useState<any[]>([]);
+  const [viewProductModalOpen, setViewProductModalOpen] = useState(false);
+  const [viewingProduct, setViewingProduct] = useState<Product | null>(null);
+  const [activeTab, setActiveTab] = useState<'details' | 'sources' | 'batches'>('details');
   const [formData, setFormData] = useState({
     product_name: '',
     hsn_code: '',
@@ -420,6 +424,12 @@ export function Products() {
     });
   };
 
+  const handleViewProduct = (product: Product) => {
+    setViewingProduct(product);
+    setActiveTab('details');
+    setViewProductModalOpen(true);
+  };
+
   const columns = [
     { key: 'product_name', label: 'Product Name' },
     { key: 'hsn_code', label: 'HSN Code' },
@@ -492,6 +502,13 @@ export function Products() {
           loading={loading}
           actions={(product) => (
             <div className="flex items-center gap-2">
+              <button
+                onClick={() => handleViewProduct(product)}
+                className="p-1 text-green-600 hover:bg-green-50 rounded transition"
+                title="View Details & Sources"
+              >
+                <Eye className="w-4 h-4" />
+              </button>
               <button
                 onClick={() => handleEdit(product)}
                 className="p-1 text-blue-600 hover:bg-blue-50 rounded transition"
@@ -966,6 +983,109 @@ export function Products() {
             </button>
           </div>
         </div>
+      </Modal>
+
+      {/* View Product Modal with Tabs */}
+      <Modal
+        isOpen={viewProductModalOpen}
+        onClose={() => {
+          setViewProductModalOpen(false);
+          setViewingProduct(null);
+          setActiveTab('details');
+        }}
+        title={viewingProduct?.product_name || 'Product Details'}
+        maxWidth="max-w-6xl"
+      >
+        {viewingProduct && (
+          <div className="space-y-4">
+            {/* Tabs */}
+            <div className="border-b border-gray-200">
+              <nav className="-mb-px flex space-x-8">
+                <button
+                  onClick={() => setActiveTab('details')}
+                  className={`py-3 px-1 border-b-2 font-medium text-sm transition ${
+                    activeTab === 'details'
+                      ? 'border-blue-600 text-blue-600'
+                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  }`}
+                >
+                  Details
+                </button>
+                <button
+                  onClick={() => setActiveTab('sources')}
+                  className={`py-3 px-1 border-b-2 font-medium text-sm transition ${
+                    activeTab === 'sources'
+                      ? 'border-blue-600 text-blue-600'
+                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  }`}
+                >
+                  Sources
+                </button>
+              </nav>
+            </div>
+
+            {/* Tab Content */}
+            <div className="pt-4">
+              {activeTab === 'details' && (
+                <div className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-500 mb-1">Product Name</label>
+                      <p className="text-base text-gray-900">{viewingProduct.product_name}</p>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-500 mb-1">HSN Code</label>
+                      <p className="text-base text-gray-900">{viewingProduct.hsn_code || '—'}</p>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-500 mb-1">Category</label>
+                      <p className="text-base text-gray-900 capitalize">{viewingProduct.category}</p>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-500 mb-1">Unit</label>
+                      <p className="text-base text-gray-900 capitalize">{viewingProduct.unit}</p>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-500 mb-1">Duty - A1</label>
+                      <p className="text-base text-gray-900">{viewingProduct.duty_a1 || '—'}</p>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-500 mb-1">Min Stock Level</label>
+                      <p className="text-base text-gray-900">
+                        {viewingProduct.min_stock_level
+                          ? `${viewingProduct.min_stock_level} ${viewingProduct.unit}`
+                          : '—'}
+                      </p>
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-500 mb-1">Default Supplier</label>
+                    <p className="text-base text-gray-900">{viewingProduct.default_supplier || '—'}</p>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-500 mb-1">Description</label>
+                    <p className="text-base text-gray-900">{viewingProduct.description || '—'}</p>
+                  </div>
+                  <div className="pt-4 border-t">
+                    <button
+                      onClick={() => handleEdit(viewingProduct)}
+                      className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                    >
+                      Edit Product
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {activeTab === 'sources' && (
+                <ProductSources
+                  productId={viewingProduct.id}
+                  productName={viewingProduct.product_name}
+                />
+              )}
+            </div>
+          </div>
+        )}
       </Modal>
     </Layout>
   );
