@@ -545,7 +545,7 @@ export function Batches() {
     {
       key: 'product',
       label: 'Product',
-      render: (batch: Batch) => (
+      render: (value: any, batch: Batch) => (
         <div>
           <div className="font-medium">{batch.products?.product_name}</div>
           {batch.products?.product_code && (
@@ -557,12 +557,12 @@ export function Batches() {
     {
       key: 'import_date',
       label: 'Import Date',
-      render: (batch: Batch) => new Date(batch.import_date).toLocaleDateString()
+      render: (value: any, batch: Batch) => new Date(batch.import_date).toLocaleDateString()
     },
     {
       key: 'stock',
       label: 'Stock',
-      render: (batch: Batch) => {
+      render: (value: any, batch: Batch) => {
         const freeStock = batch.current_stock - (batch.reserved_stock || 0);
         return (
           <div className="flex flex-col gap-1">
@@ -591,7 +591,7 @@ export function Batches() {
     {
       key: 'pricing',
       label: 'Import Price',
-      render: (batch: Batch) => (
+      render: (value: any, batch: Batch) => (
         <div className="text-sm">
           {batch.import_price_usd && batch.exchange_rate_usd_to_idr ? (
             <>
@@ -614,7 +614,7 @@ export function Batches() {
     {
       key: 'landed_cost',
       label: 'Landed Cost',
-      render: (batch: Batch) => (
+      render: (value: any, batch: Batch) => (
         <div className="text-sm">
           {batch.import_cost_allocated && batch.import_cost_allocated > 0 ? (
             <>
@@ -645,7 +645,7 @@ export function Batches() {
     {
       key: 'expiry_date',
       label: 'Expiry Date',
-      render: (batch: Batch) => (
+      render: (value: any, batch: Batch) => (
         <span className={
           isExpired(batch) ? 'text-red-700 font-semibold' :
           isNearExpiry(batch) ? 'text-orange-600 font-semibold' : ''
@@ -657,7 +657,7 @@ export function Batches() {
     {
       key: 'documents',
       label: 'Docs',
-      render: (batch: Batch) => (
+      render: (value: any, batch: Batch) => (
         <button
           onClick={() => loadBatchDocuments(batch.id)}
           className="flex items-center gap-1 px-2 py-1 bg-blue-50 text-blue-600 rounded hover:bg-blue-100 transition"
@@ -670,7 +670,7 @@ export function Batches() {
     {
       key: 'total_cost',
       label: 'Total Cost',
-      render: (batch: Batch) => {
+      render: (value: any, batch: Batch) => {
         const total = batch.import_price + batch.duty_charges + batch.freight_charges + batch.other_charges;
         return <span className="font-medium">{formatCurrency(total)}</span>;
       }
