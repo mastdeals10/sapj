@@ -595,19 +595,7 @@ export function Batches() {
       label: 'Import Price',
       render: (value: any, batch: Batch) => (
         <div className="text-sm">
-          {batch.import_price_per_unit ? (
-            <>
-              <div className="font-medium text-green-700">
-                {formatCurrency(batch.import_price_per_unit, 'USD')} / {batch.products?.unit}
-              </div>
-              <div className="text-xs text-gray-500">
-                Total: {formatCurrency(batch.import_price, 'USD')}
-              </div>
-              <div className="text-xs text-gray-400">
-                Qty: {batch.import_quantity} {batch.products?.unit}
-              </div>
-            </>
-          ) : batch.import_price_usd && batch.exchange_rate_usd_to_idr ? (
+          {batch.import_price_usd && batch.exchange_rate_usd_to_idr ? (
             <>
               <div className="font-medium text-green-700">
                 {formatCurrency(batch.import_price_usd, 'USD')}
@@ -630,37 +618,33 @@ export function Batches() {
       label: 'Landed Cost',
       render: (value: any, batch: Batch) => (
         <div className="text-sm">
-          {batch.landed_cost_per_unit ? (
+          {batch.import_cost_allocated && batch.import_cost_allocated > 0 ? (
             <>
-              <div className="font-medium text-blue-700">
-                {formatCurrency(batch.landed_cost_per_unit, 'USD')} / {batch.products?.unit}
-              </div>
-              <div className="text-xs text-gray-500">
-                Total: {formatCurrency(batch.final_landed_cost || 0, 'USD')}
-              </div>
-              <div className="text-xs text-green-600">
-                +Container: {formatCurrency(batch.import_cost_allocated || 0, 'USD')}
-              </div>
-              {batch.import_containers?.container_ref && (
-                <div className="text-xs text-gray-400">
-                  {batch.import_containers.container_ref}
-                </div>
+              {batch.import_price_usd && batch.exchange_rate_usd_to_idr ? (
+                <>
+                  <div className="font-medium text-blue-700">
+                    {formatCurrency((batch.final_landed_cost || 0) / batch.exchange_rate_usd_to_idr, 'USD')}
+                  </div>
+                  <div className="text-xs text-gray-500">
+                    {formatCurrency(batch.final_landed_cost || 0)}
+                  </div>
+                  <div className="text-xs text-green-600">
+                    +Container: {formatCurrency(batch.import_cost_allocated)}
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="font-medium text-blue-700">
+                    {formatCurrency(batch.final_landed_cost || 0)}
+                  </div>
+                  <div className="text-xs text-gray-500">
+                    Base: {formatCurrency(batch.import_price)}
+                  </div>
+                  <div className="text-xs text-green-600">
+                    +Container: {formatCurrency(batch.import_cost_allocated)}
+                  </div>
+                </>
               )}
-              {batch.cost_locked && (
-                <div className="text-xs text-amber-600 font-medium">🔒 Locked</div>
-              )}
-            </>
-          ) : batch.import_cost_allocated && batch.import_cost_allocated > 0 ? (
-            <>
-              <div className="font-medium text-blue-700">
-                {formatCurrency(batch.final_landed_cost || 0)}
-              </div>
-              <div className="text-xs text-gray-500">
-                Base: {formatCurrency(batch.import_price)}
-              </div>
-              <div className="text-xs text-green-600">
-                +Import: {formatCurrency(batch.import_cost_allocated)}
-              </div>
               {batch.import_containers?.container_ref && (
                 <div className="text-xs text-gray-400">
                   {batch.import_containers.container_ref}
