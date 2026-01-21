@@ -469,12 +469,12 @@ export function Products() {
     {
       key: 'product_name',
       label: 'NAME',
-      render: (value: any, row: Product) => (
+      render: (value: string, row: Product) => (
         <button
           onClick={() => handleViewProduct(row)}
           className="text-blue-600 hover:text-blue-800 font-medium text-left"
         >
-          {row?.product_name || value?.product_name || '-'}
+          {value || '-'}
         </button>
       )
     },

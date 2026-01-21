@@ -5,7 +5,7 @@ import { useLanguage } from '../contexts/LanguageContext';
 interface Column<T> {
   key: string;
   label: string;
-  render?: (item: T) => React.ReactNode;
+  render?: (value: any, item: T) => React.ReactNode;
   sortable?: boolean;
 }
 
@@ -166,7 +166,7 @@ export function DataTable<T extends Record<string, any>>({
                 >
                   {columns.map((column) => (
                     <td key={column.key} className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {column.render ? column.render(item) : item[column.key]}
+                      {column.render ? column.render(item[column.key], item) : item[column.key]}
                     </td>
                   ))}
                   {actions && (
