@@ -877,7 +877,6 @@ export function Sales() {
               po_number: formData.po_number || null,
               payment_terms_days: paymentTermsDays,
               notes: formData.notes || null,
-              payment_terms: formData.payment_terms || null,
             },
             p_new_items: validItems,
           });

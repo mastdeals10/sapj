@@ -21,7 +21,7 @@ interface FinanceExpense {
   batches?: { batch_number: string } | null;
   import_containers?: { container_ref: string } | null;
   delivery_challans?: { challan_number: string } | null;
-  bank_accounts?: { bank_name: string; account_number: string } | null;
+  bank_accounts?: { bank_name: string; account_number: string; alias: string | null; currency: string } | null;
   bank_statement_lines?: Array<{
     id: string;
     transaction_date: string;
@@ -29,7 +29,7 @@ interface FinanceExpense {
     debit_amount: number;
     credit_amount: number;
     bank_account_id: string;
-    bank_accounts?: { bank_name: string; account_number: string } | null;
+    bank_accounts?: { bank_name: string; account_number: string; alias: string | null; currency: string } | null;
   }> | null;
 }
 
@@ -57,6 +57,7 @@ interface BankAccount {
   bank_name: string;
   account_number: string;
   alias: string | null;
+  currency: string;
 }
 
 interface ExpenseManagerProps {
@@ -404,7 +405,7 @@ export function ExpenseManager({ canManage }: ExpenseManagerProps) {
             batches(batch_number),
             import_containers(container_ref),
             delivery_challans(challan_number),
-            bank_accounts(bank_name, account_number),
+            bank_accounts(bank_name, account_number, alias, currency),
             bank_statement_lines(
               id,
               transaction_date,
@@ -412,7 +413,7 @@ export function ExpenseManager({ canManage }: ExpenseManagerProps) {
               debit_amount,
               credit_amount,
               bank_account_id,
-              bank_accounts(bank_name, account_number)
+              bank_accounts(bank_name, account_number, alias, currency)
             )
           `)
           .order('expense_date', { ascending: false })
@@ -432,7 +433,7 @@ export function ExpenseManager({ canManage }: ExpenseManagerProps) {
           .limit(50),
         supabase
           .from('bank_accounts')
-          .select('id, bank_name, account_number, alias')
+          .select('id, bank_name, account_number, alias, currency')
           .order('bank_name'),
         supabase
           .from('bank_statement_lines')
@@ -476,7 +477,7 @@ export function ExpenseManager({ canManage }: ExpenseManagerProps) {
           debit_amount,
           credit_amount,
           bank_account_id,
-          bank_accounts(bank_name, account_number)
+          bank_accounts(bank_name, account_number, alias, currency)
         `)
         .or(`matched_expense_id.is.null,matched_expense_id.eq.${currentExpenseId || 'NULL'}`)
         .is('matched_receipt_id', null)
@@ -1365,17 +1366,17 @@ export function ExpenseManager({ canManage }: ExpenseManagerProps) {
                     </td>
                     <td className="px-4 py-2.5 whitespace-nowrap text-right">
                       <div className="text-xs font-semibold text-gray-900">
-                        Rp {expense.amount.toLocaleString('id-ID', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                        {expense.bank_accounts?.currency === 'USD' ? '$' : 'Rp'} {expense.amount.toLocaleString('id-ID', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
                       </div>
                     </td>
                     <td className="px-4 py-2.5 whitespace-nowrap text-center">
                       {isReconciled && reconciledBankInfo ? (
                         <div className="text-xs">
-                          <div className="font-medium text-blue-700">{reconciledBankInfo.bank_name}</div>
+                          <div className="font-medium text-blue-700">{reconciledBankInfo.alias || reconciledBankInfo.bank_name}</div>
                         </div>
                       ) : expense.bank_account_id && expense.bank_accounts ? (
                         <div className="text-xs">
-                          <div className="font-medium text-gray-700">{expense.bank_accounts.bank_name}</div>
+                          <div className="font-medium text-gray-700">{expense.bank_accounts.alias || expense.bank_accounts.bank_name}</div>
                         </div>
                       ) : (
                         <span className="text-xs text-gray-600">{expense.payment_method ? expense.payment_method.replace('_', ' ') : '—'}</span>
@@ -1744,7 +1745,7 @@ export function ExpenseManager({ canManage }: ExpenseManagerProps) {
                     <div className="flex justify-between">
                       <span className="text-gray-600">Bank:</span>
                       <span className="font-medium text-gray-900">
-                        {line.bank_accounts?.bank_name} - {line.bank_accounts?.account_number}
+                        {line.bank_accounts?.alias || line.bank_accounts?.bank_name} - {line.bank_accounts?.account_number}
                       </span>
                     </div>
                     <div className="flex justify-between">
@@ -1962,7 +1963,7 @@ export function ExpenseManager({ canManage }: ExpenseManagerProps) {
                 <div>
                   <label className="text-xs text-gray-500 font-medium uppercase">Bank Account</label>
                   <p className="text-sm text-gray-900 mt-1">
-                    {viewingExpense.bank_accounts.bank_name} - {viewingExpense.bank_accounts.account_number}
+                    {viewingExpense.bank_accounts.alias || viewingExpense.bank_accounts.bank_name} - {viewingExpense.bank_accounts.account_number}
                   </p>
                 </div>
               )}
@@ -2020,7 +2021,7 @@ export function ExpenseManager({ canManage }: ExpenseManagerProps) {
                         <div>
                           <div className="text-xs text-gray-600 font-medium mb-1">Bank Account</div>
                           <div className="text-gray-900 font-semibold">
-                            {line.bank_accounts?.bank_name}
+                            {line.bank_accounts?.alias || line.bank_accounts?.bank_name}
                           </div>
                           <div className="text-xs text-gray-600">{line.bank_accounts?.account_number}</div>
                         </div>
