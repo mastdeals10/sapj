@@ -228,44 +228,48 @@ export function Batches() {
       const freightAmount = calculateCharge(formData.freight_charges, formData.freight_charge_type, importPriceIDR);
       const otherAmount = calculateCharge(formData.other_charges, formData.other_charge_type, importPriceIDR);
 
-      const batchData = {
-        batch_number: formData.batch_number,
-        product_id: formData.product_id,
-        import_container_id: formData.import_container_id || null,
-        import_date: formData.import_date,
-        import_quantity: formData.import_quantity,
-        current_stock: formData.import_quantity,
-        packaging_details: formData.packaging_details,
-        import_price: importPriceIDR,
-        import_price_usd: formData.import_price_usd || null,
-        exchange_rate_usd_to_idr: formData.exchange_rate_usd_to_idr || null,
-        duty_percent: formData.duty_percent || 0,
-        duty_charges: dutyAmount,
-        duty_charge_type: 'percentage',
-        freight_charges: freightAmount,
-        freight_charge_type: formData.freight_charge_type,
-        other_charges: otherAmount,
-        other_charge_type: formData.other_charge_type,
-        expiry_date: formData.expiry_date || null,
-      };
-
       let batchId: string;
 
       if (editingBatch) {
+        // For updates, calculate delta and adjust current_stock
+        const quantityDelta = formData.import_quantity - editingBatch.import_quantity;
+        const newCurrentStock = editingBatch.current_stock + quantityDelta;
+
+        const batchUpdateData = {
+          batch_number: formData.batch_number,
+          product_id: formData.product_id,
+          import_container_id: formData.import_container_id || null,
+          import_date: formData.import_date,
+          import_quantity: formData.import_quantity,
+          current_stock: newCurrentStock,
+          packaging_details: formData.packaging_details,
+          import_price: importPriceIDR,
+          import_price_usd: formData.import_price_usd || null,
+          exchange_rate_usd_to_idr: formData.exchange_rate_usd_to_idr || null,
+          duty_percent: formData.duty_percent || 0,
+          duty_charges: dutyAmount,
+          duty_charge_type: 'percentage',
+          freight_charges: freightAmount,
+          freight_charge_type: formData.freight_charge_type,
+          other_charges: otherAmount,
+          other_charge_type: formData.other_charge_type,
+          expiry_date: formData.expiry_date || null,
+        };
+
         const { error } = await supabase
           .from('batches')
-          .update(batchData)
+          .update(batchUpdateData)
           .eq('id', editingBatch.id);
 
         if (error) throw error;
         batchId = editingBatch.id;
 
-        if (formData.import_quantity !== editingBatch.import_quantity) {
+        if (quantityDelta !== 0) {
           const { error: transError } = await supabase
             .from('inventory_transactions')
             .update({
               quantity: formData.import_quantity,
-              notes: `Updated import quantity from ${editingBatch.import_quantity} to ${formData.import_quantity}`
+              notes: `Updated import quantity from ${editingBatch.import_quantity} to ${formData.import_quantity} (Delta: ${quantityDelta > 0 ? '+' : ''}${quantityDelta})`
             })
             .eq('batch_id', editingBatch.id)
             .eq('transaction_type', 'purchase');
@@ -275,6 +279,28 @@ export function Batches() {
           }
         }
       } else {
+        // For new batches, current_stock = import_quantity
+        const batchData = {
+          batch_number: formData.batch_number,
+          product_id: formData.product_id,
+          import_container_id: formData.import_container_id || null,
+          import_date: formData.import_date,
+          import_quantity: formData.import_quantity,
+          current_stock: formData.import_quantity,
+          packaging_details: formData.packaging_details,
+          import_price: importPriceIDR,
+          import_price_usd: formData.import_price_usd || null,
+          exchange_rate_usd_to_idr: formData.exchange_rate_usd_to_idr || null,
+          duty_percent: formData.duty_percent || 0,
+          duty_charges: dutyAmount,
+          duty_charge_type: 'percentage',
+          freight_charges: freightAmount,
+          freight_charge_type: formData.freight_charge_type,
+          other_charges: otherAmount,
+          other_charge_type: formData.other_charge_type,
+          expiry_date: formData.expiry_date || null,
+        };
+
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) throw new Error('Not authenticated');
 
