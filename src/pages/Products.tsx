@@ -484,7 +484,7 @@ export function Products() {
     {
       key: 'current_stock',
       label: 'STOCK',
-      render: (value: number | undefined) => value !== undefined ? value.toFixed(2) : '-'
+      render: (value: any) => (value !== null && value !== undefined && typeof value === 'number') ? value.toFixed(2) : '-'
     },
     { key: 'duty_a1', label: 'DUTY A1' }
   ];
