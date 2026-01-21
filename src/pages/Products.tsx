@@ -349,6 +349,17 @@ export function Products() {
         return;
       }
 
+      const { data: salesOrderItems } = await supabase
+        .from('sales_order_items')
+        .select('id')
+        .eq('product_id', product.id)
+        .limit(1);
+
+      if (salesOrderItems && salesOrderItems.length > 0) {
+        alert('Cannot delete this product. It has been used in sales orders. Please deactivate it instead.');
+        return;
+      }
+
       const { data: challanItems } = await supabase
         .from('delivery_challan_items')
         .select('id')
