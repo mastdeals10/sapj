@@ -617,34 +617,37 @@ export function Batches() {
       key: 'landed_cost',
       label: 'Landed Cost',
       render: (value: any, batch: Batch) => {
-        const totalCost = batch.import_price + batch.duty_charges + batch.freight_charges + batch.other_charges;
         const hasContainer = batch.import_cost_allocated && batch.import_cost_allocated > 0;
-        const landedCost = hasContainer ? (batch.final_landed_cost || 0) : totalCost;
+        const landedCostPerUnit = batch.landed_cost_per_unit || batch.import_price;
+        const containerPerUnit = hasContainer ? (batch.import_cost_allocated / batch.import_quantity) : 0;
 
         return (
           <div className="text-sm">
             {batch.import_price_usd && batch.exchange_rate_usd_to_idr ? (
               <>
                 <div className="font-medium text-blue-700">
-                  {formatCurrency(landedCost / batch.exchange_rate_usd_to_idr, 'USD')}
+                  {formatCurrency(landedCostPerUnit / batch.exchange_rate_usd_to_idr, 'USD')}
                 </div>
                 <div className="text-xs text-gray-500">
-                  {formatCurrency(landedCost)}
+                  {formatCurrency(landedCostPerUnit)}
                 </div>
                 {hasContainer && (
                   <div className="text-xs text-green-600">
-                    +Container: {formatCurrency(batch.import_cost_allocated)}
+                    +Container: {formatCurrency(containerPerUnit)}
                   </div>
                 )}
+                <div className="text-xs text-gray-400">
+                  @ {batch.exchange_rate_usd_to_idr.toLocaleString('id-ID')}
+                </div>
               </>
             ) : (
               <>
                 <div className="font-medium text-blue-700">
-                  {formatCurrency(landedCost)}
+                  {formatCurrency(landedCostPerUnit)}
                 </div>
                 {hasContainer && (
                   <div className="text-xs text-green-600">
-                    +Container: {formatCurrency(batch.import_cost_allocated)}
+                    +Container: {formatCurrency(containerPerUnit)}
                   </div>
                 )}
               </>
