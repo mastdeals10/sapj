@@ -216,7 +216,7 @@ export function Stock() {
     {
       key: 'expiry',
       label: 'Nearest Expiry',
-      render: (item: StockSummary) => (
+      render: (value: any, item: StockSummary) => (
         item.nearest_expiry_date ? (
           <span className={`text-sm ${
             isExpired(item.nearest_expiry_date) ? 'text-red-700 font-semibold' :
