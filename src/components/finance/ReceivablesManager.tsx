@@ -83,31 +83,76 @@ export function ReceivablesManager({ canManage }: { canManage: boolean }) {
           .order('account_name'),
       ]);
 
-      if (invoicesRes.error) throw invoicesRes.error;
-      if (paymentsRes.error) throw paymentsRes.error;
-      if (banksRes.error) throw banksRes.error;
+      if (invoicesRes.error) {
+        console.error('Error loading invoices:', invoicesRes.error);
+        throw invoicesRes.error;
+      }
+      if (paymentsRes.error) {
+        console.error('Error loading payments:', paymentsRes.error);
+        throw paymentsRes.error;
+      }
+      if (banksRes.error) {
+        console.error('Error loading banks:', banksRes.error);
+        throw banksRes.error;
+      }
 
       // Calculate paid_amount for each invoice
       const invoicesWithPaidAmount = await Promise.all((invoicesRes.data || []).map(async (invoice) => {
-        const { data: allocations } = await supabase
-          .from('voucher_allocations')
-          .select('allocated_amount')
-          .eq('sales_invoice_id', invoice.id)
-          .eq('voucher_type', 'receipt');
+        try {
+          const { data: allocations, error: allocError } = await supabase
+            .from('voucher_allocations')
+            .select('allocated_amount')
+            .eq('sales_invoice_id', invoice.id)
+            .eq('voucher_type', 'receipt');
 
-        const paid_amount = allocations?.reduce((sum, alloc) => sum + alloc.allocated_amount, 0) || 0;
-        return { ...invoice, paid_amount };
+          if (allocError) {
+            console.error('Error loading allocations for invoice:', invoice.id, allocError);
+          }
+
+          const paid_amount = allocations?.reduce((sum, alloc) => sum + (Number(alloc.allocated_amount) || 0), 0) || 0;
+          return {
+            ...invoice,
+            paid_amount,
+            customers: invoice.customers || null
+          };
+        } catch (err) {
+          console.error('Error processing invoice:', invoice.id, err);
+          return {
+            ...invoice,
+            paid_amount: 0,
+            customers: invoice.customers || null
+          };
+        }
       }));
 
       // Get allocations for each receipt voucher
       const paymentsWithAllocations = await Promise.all((paymentsRes.data || []).map(async (voucher) => {
-        const { data: allocations } = await supabase
-          .from('voucher_allocations')
-          .select('allocated_amount, sales_invoices(invoice_number)')
-          .eq('receipt_voucher_id', voucher.id)
-          .eq('voucher_type', 'receipt');
+        try {
+          const { data: allocations, error: allocError } = await supabase
+            .from('voucher_allocations')
+            .select('allocated_amount, sales_invoices(invoice_number)')
+            .eq('receipt_voucher_id', voucher.id)
+            .eq('voucher_type', 'receipt');
 
-        return { ...voucher, allocations: allocations || [] };
+          if (allocError) {
+            console.error('Error loading allocations for voucher:', voucher.id, allocError);
+          }
+
+          return {
+            ...voucher,
+            allocations: allocations || [],
+            customers: voucher.customers || null,
+            bank_accounts: voucher.bank_accounts || null
+          };
+        } catch (err) {
+          console.error('Error processing voucher:', voucher.id, err);
+          return {
+            ...voucher,
+            allocations: [],
+            customers: voucher.customers || null,
+            bank_accounts: voucher.bank_accounts || null
+          };
+        }
       }));
 
       setInvoices(invoicesWithPaidAmount);
@@ -151,18 +196,38 @@ export function ReceivablesManager({ canManage }: { canManage: boolean }) {
         .in('payment_status', ['pending', 'partial'])
         .order('invoice_date', { ascending: true });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error loading customer invoices:', error);
+        throw error;
+      }
 
       // Calculate paid_amount for each invoice
       const invoicesWithPaidAmount = await Promise.all((custInvoices || []).map(async (inv) => {
-        const { data: allocations } = await supabase
-          .from('voucher_allocations')
-          .select('allocated_amount')
-          .eq('sales_invoice_id', inv.id)
-          .eq('voucher_type', 'receipt');
+        try {
+          const { data: allocations, error: allocError } = await supabase
+            .from('voucher_allocations')
+            .select('allocated_amount')
+            .eq('sales_invoice_id', inv.id)
+            .eq('voucher_type', 'receipt');
 
-        const paid_amount = allocations?.reduce((sum, alloc) => sum + alloc.allocated_amount, 0) || 0;
-        return { ...inv, paid_amount };
+          if (allocError) {
+            console.error('Error loading allocations for invoice:', inv.id, allocError);
+          }
+
+          const paid_amount = allocations?.reduce((sum, alloc) => sum + (Number(alloc.allocated_amount) || 0), 0) || 0;
+          return {
+            ...inv,
+            paid_amount,
+            customers: inv.customers || null
+          };
+        } catch (err) {
+          console.error('Error processing invoice:', inv.id, err);
+          return {
+            ...inv,
+            paid_amount: 0,
+            customers: inv.customers || null
+          };
+        }
       }));
 
       setCustomerInvoices(invoicesWithPaidAmount);
