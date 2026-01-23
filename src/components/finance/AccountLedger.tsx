@@ -103,14 +103,24 @@ export function AccountLedger() {
         .eq('account_id', selectedAccount.id)
         .gte('journal_entries.entry_date', dateRange.startDate)
         .lte('journal_entries.entry_date', dateRange.endDate)
-        .order('journal_entries.entry_date')
         .order('line_number');
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error loading ledger:', error);
+        throw error;
+      }
+
+      // Sort by date and line number client-side since PostgREST doesn't support ordering by foreign table fields
+      const sortedData = (data || []).sort((a: any, b: any) => {
+        const dateA = new Date(a.journal_entries.entry_date).getTime();
+        const dateB = new Date(b.journal_entries.entry_date).getTime();
+        if (dateA !== dateB) return dateA - dateB;
+        return a.line_number - b.line_number;
+      });
 
       // Calculate running balance
       let runningBalance = opening;
-      const ledgerWithBalance = (data || []).map((line: any) => {
+      const ledgerWithBalance = sortedData.map((line: any) => {
         const entry = line.journal_entries;
 
         // Update balance based on account type
