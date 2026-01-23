@@ -203,6 +203,23 @@ export function AccountLedger() {
         )}
       </div>
 
+      {!selectedAccount && (
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-6 text-center">
+          <p className="text-blue-800 font-medium mb-2">Select an account to view its ledger</p>
+          <p className="text-blue-600 text-sm mb-4">
+            Use the dropdown above to choose an account, or search by code or name.
+          </p>
+          <div className="bg-white border border-blue-200 rounded p-3 text-left max-w-md mx-auto">
+            <p className="text-sm text-gray-700 mb-1">
+              <span className="font-semibold">Tip:</span> To view all journal entries across all accounts:
+            </p>
+            <p className="text-sm text-blue-700">
+              Go to <span className="font-mono bg-blue-100 px-2 py-0.5 rounded">Journal Register</span> in the Books menu (Ctrl+J)
+            </p>
+          </div>
+        </div>
+      )}
+
       {selectedAccount && (
         <>
           {/* Ledger Header */}

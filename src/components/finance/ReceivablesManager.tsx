@@ -87,6 +87,18 @@ export function ReceivablesManager({ canManage }: { canManage: boolean }) {
       if (paymentsRes.error) throw paymentsRes.error;
       if (banksRes.error) throw banksRes.error;
 
+      // Calculate paid_amount for each invoice
+      const invoicesWithPaidAmount = await Promise.all((invoicesRes.data || []).map(async (invoice) => {
+        const { data: allocations } = await supabase
+          .from('voucher_allocations')
+          .select('allocated_amount')
+          .eq('sales_invoice_id', invoice.id)
+          .eq('voucher_type', 'receipt');
+
+        const paid_amount = allocations?.reduce((sum, alloc) => sum + alloc.allocated_amount, 0) || 0;
+        return { ...invoice, paid_amount };
+      }));
+
       // Get allocations for each receipt voucher
       const paymentsWithAllocations = await Promise.all((paymentsRes.data || []).map(async (voucher) => {
         const { data: allocations } = await supabase
@@ -98,7 +110,7 @@ export function ReceivablesManager({ canManage }: { canManage: boolean }) {
         return { ...voucher, allocations: allocations || [] };
       }));
 
-      setInvoices(invoicesRes.data || []);
+      setInvoices(invoicesWithPaidAmount);
       setPayments(paymentsWithAllocations);
       setBankAccounts(banksRes.data || []);
     } catch (error) {
@@ -141,8 +153,19 @@ export function ReceivablesManager({ canManage }: { canManage: boolean }) {
 
       if (error) throw error;
 
-      // Invoices already have paid_amount and balance_amount from database
-      setCustomerInvoices(custInvoices || []);
+      // Calculate paid_amount for each invoice
+      const invoicesWithPaidAmount = await Promise.all((custInvoices || []).map(async (inv) => {
+        const { data: allocations } = await supabase
+          .from('voucher_allocations')
+          .select('allocated_amount')
+          .eq('sales_invoice_id', inv.id)
+          .eq('voucher_type', 'receipt');
+
+        const paid_amount = allocations?.reduce((sum, alloc) => sum + alloc.allocated_amount, 0) || 0;
+        return { ...inv, paid_amount };
+      }));
+
+      setCustomerInvoices(invoicesWithPaidAmount);
 
       // Pre-select the clicked invoice
       setSelectedAllocations({
